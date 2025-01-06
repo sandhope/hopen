@@ -1,0 +1,17 @@
+[package]
+name = "hopen"
+version = "0.1.0"
+edition = "2021"
+description = "A multi-platform open-source VPN client."  
+license = "GPL-3.0-or-later"
+authors = ["zhangfuxing"]
+
+[[bin]]
+name = "hopen"
+path = "src/main.rs"
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed" }
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource = "0.1"
