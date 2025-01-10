@@ -1,4 +1,4 @@
-# 🌱 **Hopen**
+# 🕊 **Hopen**
 
 Hope + Open = **Hopen**
 
