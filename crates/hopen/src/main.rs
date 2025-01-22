@@ -1,11 +1,8 @@
 // Disable command line from opening on release mode
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod components;
-mod main_view;
-
 use gpui::{prelude::*, App, AppContext, WindowOptions};
-use main_view::MainView;
+use hopen::MainView;
 
 fn main() {
     App::new().run(|cx: &mut AppContext| {

@@ -1,3 +1,5 @@
+mod components;
+
 use crate::components::button;
 use gpui::{div, prelude::*, rgb, SharedString, ViewContext};
 

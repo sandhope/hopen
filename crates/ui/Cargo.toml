@@ -1,0 +1,41 @@
+[package]
+description = "UI components for the GPUI"
+edition = "2021"
+name = "ui"
+publish = false
+version = "0.1.0"
+
+[lib]
+doctest = false
+
+[dependencies]
+gpui.workspace = true
+# anyhow = "1"
+# image = "0.25.1"
+# itertools = "0.13.0"
+# once_cell = "1.19.0"
+# paste = "1"
+# regex = "1"
+# resvg = { version = "0.44.0", default-features = false, features = [
+#   "system-fonts",
+#   "text",
+# ] }
+# rust-embed.workspace = true
+# rust-i18n = "3"
+# serde = "1.0.203"
+# serde_json = "1"
+# smallvec = "1.13.2"
+# smol = "1"
+# unicode-segmentation = "1.11.0"
+# usvg = { version = "0.44.0", default-features = false, features = [
+#   "system-fonts",
+#   "text",
+# ] }
+# uuid = "1.10"
+# wry = "0.48.0"
+
+# Calendar
+chrono = "0.4.38"
+
+[lints]
+workspace = true
