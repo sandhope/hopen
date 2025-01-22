@@ -1,6 +1,4 @@
-use gpui::{
-    div, prelude::*, rgb, SharedString, WindowContext
-};
+use gpui::{div, prelude::*, rgb, SharedString, WindowContext};
 
 pub fn button(text: &str, on_click: impl Fn(&mut WindowContext) + 'static) -> impl IntoElement {
     div()
