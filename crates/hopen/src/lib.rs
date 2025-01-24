@@ -1,7 +1,9 @@
-mod components;
-
-use crate::components::button;
 use gpui::{div, prelude::*, rgb, SharedString, ViewContext};
+
+use ui::{
+    label::Label,
+    button::Button,
+};
 
 pub struct MainView {
     pub text: SharedString,
@@ -18,7 +20,8 @@ impl Render for MainView {
             .text_xl()
             .text_color(rgb(0x000000))
             .child(format!("{}", &self.text))
-            .child(button("Click Me", |_cx| {
+            .child(Label::new("Text align left"))
+            .child(Button::new("Click Me", |_cx| {
                 println!("Button clicked");
             }))
             .children(vec![format!("{}", "children1"), format!("{}", "children2")])

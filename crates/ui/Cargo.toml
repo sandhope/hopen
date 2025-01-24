@@ -34,8 +34,8 @@ gpui.workspace = true
 # uuid = "1.10"
 # wry = "0.48.0"
 
-# Calendar
-chrono = "0.4.38"
+# # Calendar
+# chrono = "0.4.38"
 
 [lints]
 workspace = true

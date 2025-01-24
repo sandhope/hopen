@@ -11,7 +11,8 @@ name = "hopen"
 path = "src/main.rs"
 
 [dependencies]
-gpui = { git = "https://github.com/zed-industries/zed" }
+ui.workspace = true
+gpui.workspace = true
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 winresource = "0.1"
