@@ -874,6 +874,12 @@ fn language_sub_page_body(
         )
         .child(lang_option_row(theme, "en-US", "English", &current_lang))
         .child(lang_option_row(theme, "zh-CN", "简体中文", &current_lang))
+        .child(lang_option_row(theme, "ja-JP", "日本語", &current_lang))
+        .child(lang_option_row(theme, "ko-KR", "한국어", &current_lang))
+        .child(lang_option_row(theme, "de-DE", "Deutsch", &current_lang))
+        .child(lang_option_row(theme, "fr-FR", "Français", &current_lang))
+        .child(lang_option_row(theme, "es-ES", "Español", &current_lang))
+        .child(lang_option_row(theme, "pt-BR", "Português", &current_lang))
 }
 
 /// Back button that returns to the main settings list.
@@ -912,12 +918,11 @@ fn lang_option_row(
     current_lang: &str,
 ) -> impl IntoElement {
     let is_active = lang_id == current_lang;
-    let id = if lang_id == "en-US" { "lang-en" } else { "lang-zh" };
-    let lang_id = lang_id.to_string();
+    let lang_id_owned = lang_id.to_string();
     let lang_name = lang_name.to_string();
 
     div()
-        .id(id)
+        .id(lang_id)
         .flex()
         .items_center()
         .gap(px(10.0))
@@ -929,8 +934,8 @@ fn lang_option_row(
             s.bg(rgb(theme.surface))
         })
         .on_click(move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
-            crate::i18n::I18nManager::init_with_language_id(cx, &lang_id);
-            save_language_id(&lang_id);
+            crate::i18n::I18nManager::init_with_language_id(cx, &lang_id_owned);
+            save_language_id(&lang_id_owned);
             cx.refresh_windows();
         })
         .child(
