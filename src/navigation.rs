@@ -58,17 +58,5 @@ impl Page {
         }
     }
 
-    /// Short description for the page.
-    pub fn description(&self) -> &'static str {
-        match self {
-            Page::Dashboard => "Overview of proxy status, traffic, and quick controls",
-            Page::Proxies => "Manage proxy groups and select active proxies",
-            Page::Profiles => "Manage subscription profiles and configurations",
-            Page::Requests => "Monitor real-time network requests",
-            Page::Connections => "View active connections and manage them",
-            Page::Resources => "Manage GeoIP, GeoSite, and other resource files",
-            Page::Logs => "View proxy core logs and diagnostics",
-            Page::Tools => "Application settings, theme, backup, and more",
-        }
-    }
+
 }

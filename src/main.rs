@@ -15,6 +15,39 @@ use app::AppView;
 use navigation::Page;
 use theme::{Theme, ThemeMode};
 
+// ─── Outbound Mode ────────────────────────────────────────────
+
+/// Proxy outbound routing mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum OutboundMode {
+    /// Route all traffic through the proxy.
+    #[default]
+    Global,
+    /// Use rule-based routing.
+    Rule,
+    /// Bypass the proxy entirely.
+    Direct,
+}
+
+impl OutboundMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            OutboundMode::Global => "Global",
+            OutboundMode::Rule => "Rule",
+            OutboundMode::Direct => "Direct",
+        }
+    }
+
+    /// Cycle to the next mode: Global → Rule → Direct → Global.
+    pub fn next(self) -> Self {
+        match self {
+            OutboundMode::Global => OutboundMode::Rule,
+            OutboundMode::Rule => OutboundMode::Direct,
+            OutboundMode::Direct => OutboundMode::Global,
+        }
+    }
+}
+
 // ─── Global State ──────────────────────────────────────────────
 
 /// Application-wide state accessible from any context.
@@ -27,6 +60,17 @@ pub struct AppState {
     pub tun_mode: bool,
     /// Active colour theme.
     pub theme_mode: ThemeMode,
+    /// Current outbound routing mode.
+    pub outbound_mode: OutboundMode,
+    /// Network traffic statistics (placeholder).
+    pub upload_speed: u64,
+    pub download_speed: u64,
+    pub upload_total: u64,
+    pub download_total: u64,
+    /// Network info (placeholder).
+    pub public_ip: Option<String>,
+    pub lan_ip: Option<String>,
+    pub isp: Option<String>,
 }
 
 impl Global for AppState {}
@@ -47,6 +91,10 @@ actions!(
         NavigateToProfiles,
         NavigateToTools,
         ToggleTheme,
+        ToggleCore,
+        ToggleSystemProxy,
+        ToggleTunMode,
+        SetOutboundMode,
     ]
 );
 
@@ -60,6 +108,14 @@ fn main() {
             system_proxy: false,
             tun_mode: false,
             theme_mode: load_theme_mode(),
+            outbound_mode: OutboundMode::default(),
+            upload_speed: 0,
+            download_speed: 0,
+            upload_total: 0,
+            download_total: 0,
+            public_ip: None,
+            lan_ip: None,
+            isp: None,
         });
 
         // Bind keyboard shortcuts
@@ -97,6 +153,34 @@ fn main() {
             cx.update_global::<AppState, _>(|state, _cx| {
                 state.theme_mode = state.theme_mode.toggle();
                 save_theme_mode(state.theme_mode);
+            });
+            cx.refresh_windows();
+        });
+
+        cx.on_action(|_: &ToggleCore, cx| {
+            cx.update_global::<AppState, _>(|state, _cx| {
+                state.core_running = !state.core_running;
+            });
+            cx.refresh_windows();
+        });
+
+        cx.on_action(|_: &ToggleSystemProxy, cx| {
+            cx.update_global::<AppState, _>(|state, _cx| {
+                state.system_proxy = !state.system_proxy;
+            });
+            cx.refresh_windows();
+        });
+
+        cx.on_action(|_: &ToggleTunMode, cx| {
+            cx.update_global::<AppState, _>(|state, _cx| {
+                state.tun_mode = !state.tun_mode;
+            });
+            cx.refresh_windows();
+        });
+
+        cx.on_action(|_: &SetOutboundMode, cx| {
+            cx.update_global::<AppState, _>(|state, _cx| {
+                state.outbound_mode = state.outbound_mode.next();
             });
             cx.refresh_windows();
         });

@@ -134,6 +134,5 @@ impl Theme {
 // ─── Sizing & Spacing (theme-independent) ────────────────────────
 
 pub const SIDEBAR_WIDTH: f32 = 200.0;
-pub const HEADER_HEIGHT: f32 = 52.0;
 pub const NAV_ITEM_HEIGHT: f32 = 40.0;
 pub const CARD_RADIUS: f32 = 8.0;
