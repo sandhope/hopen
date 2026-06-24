@@ -8,6 +8,7 @@
 
 use gpui::*;
 
+use crate::i18n::I18nStrings;
 use crate::theme::Theme;
 
 /// Height of the custom titlebar in pixels.
@@ -30,6 +31,7 @@ const ICON_CLOSE: &str = "icon/titlebar/chrome-close.svg";
 pub fn render_titlebar(
     theme: &Theme,
     window: &mut Window,
+    strings: &I18nStrings,
 ) -> impl IntoElement + use<> {
     let bg = rgb(theme.titlebar_bg);
     let border = rgb(theme.titlebar_border);
@@ -70,7 +72,7 @@ pub fn render_titlebar(
                         .truncate()
                         .text_size(px(12.0))
                         .text_color(rgb(theme.titlebar_text))
-                        .child("Hopen"),
+                        .child(strings.app_name),
                 ),
         )
         // ── Window control buttons (right) ──

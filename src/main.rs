@@ -6,6 +6,7 @@
 mod app;
 mod assets;
 mod components;
+mod i18n;
 mod navigation;
 mod theme;
 mod views;
@@ -14,6 +15,7 @@ use gpui::*;
 
 use app::AppView;
 use assets::Assets;
+use i18n::I18nManager;
 use navigation::Page;
 use theme::{Theme, ThemeMode};
 
@@ -122,6 +124,11 @@ fn main() {
             isp: None,
         });
 
+        // Initialize i18n — auto-detect system language
+        let lang_id = i18n::detect_system_language_id();
+        let lang_id = load_language_id().unwrap_or(lang_id);
+        I18nManager::init_with_language_id(cx, &lang_id);
+
         // Bind keyboard shortcuts
         cx.bind_keys([
             KeyBinding::new("ctrl-q", Quit, None),
@@ -207,6 +214,7 @@ fn main() {
             |_, cx| {
                 cx.new(|_cx| AppView {
                     current_page: Page::Dashboard,
+                    tools_sub_page: None,
                 })
             },
         )
@@ -260,6 +268,19 @@ pub(crate) fn save_theme_mode(mode: ThemeMode) {
     let _ = std::fs::write(dir.join("theme"), mode.label());
 }
 
+/// Load the saved language id from disk.
+pub(crate) fn load_language_id() -> Option<String> {
+    let path = config_dir().join("lang");
+    std::fs::read_to_string(&path).ok().map(|s| s.trim().to_owned())
+}
+
+/// Persist the current language id so it survives restarts.
+pub(crate) fn save_language_id(id: &str) {
+    let dir = config_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join("lang"), id);
+}
+
 // ─── Navigation ─────────────────────────────────────────────
 
 /// Helper: find the AppView entity in the window and update its current page.
@@ -270,6 +291,7 @@ fn navigate_to(cx: &mut App, page: Page) {
             if let Ok(app_view) = root_view.downcast::<AppView>() {
                 app_view.update(cx, |app_view, cx| {
                     app_view.current_page = page;
+                    app_view.tools_sub_page = None; // reset sub-page on main nav
                     cx.notify();
                 });
             }

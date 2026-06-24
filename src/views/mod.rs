@@ -4,25 +4,71 @@
 /// Theme-aware: all colours come from the `Theme` parameter.
 
 use gpui::*;
+use gpui::prelude::*;
 
-use crate::navigation::Page;
+use crate::i18n::{I18nStrings, language_display_name};
+use crate::navigation::{Page, ToolsSubPage};
 use crate::theme::{Theme, CARD_RADIUS};
 use crate::{
-    save_theme_mode, AppState, OutboundMode, SetOutboundMode, ToggleCore, ToggleSystemProxy,
-    ToggleTunMode,
+    save_theme_mode, save_language_id, AppState, OutboundMode,
+    SetOutboundMode, ToggleCore, ToggleSystemProxy, ToggleTunMode,
 };
 
 /// Route to the correct page view based on the current navigation state.
 ///
 /// `cx` is the AppView context, needed for interactive elements (e.g. theme toggle).
+/// `tools_sub_page` is the active drill-down sub-page within Settings, or `None`
+/// for the main settings list.
 pub fn render_page(
     page: Page,
+    tools_sub_page: Option<ToolsSubPage>,
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
-) -> impl IntoElement + use<> {
-    let title = page.title();
+) -> impl IntoElement {
+    let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
-    let header = div()
+    // Compute header and content, accounting for Settings sub-pages.
+    // We collect both into AnyElement so the outer div has a single concrete return type.
+    let (header_elem, content_elem): (AnyElement, AnyElement) = if page == Page::Tools {
+        if let Some(sub) = tools_sub_page {
+            let header = render_sub_page_header(sub, theme, cx, &strings).into_any_element();
+            let body = render_sub_page_body(sub, theme, cx, &strings).into_any_element();
+            (header, body)
+        } else {
+            let title = strings.page_title(page);
+            (
+                page_header(title, theme).into_any_element(),
+                tools_view(theme, cx, &strings).into_any_element(),
+            )
+        }
+    } else {
+        let title = strings.page_title(page);
+        let content: AnyElement = match page {
+            Page::Dashboard => dashboard_view(theme, cx, &strings).into_any_element(),
+            Page::Proxies => proxies_view(theme, &strings).into_any_element(),
+            Page::Profiles => profiles_view(theme, &strings).into_any_element(),
+            Page::Requests => requests_view(theme, &strings).into_any_element(),
+            Page::Connections => connections_view(theme, &strings).into_any_element(),
+            Page::Resources => resources_view(theme, &strings).into_any_element(),
+            Page::Logs => logs_view(theme, &strings).into_any_element(),
+            Page::Tools => unreachable!(),
+        };
+        (page_header(title, theme).into_any_element(), content)
+    };
+
+    div()
+        .flex()
+        .flex_col()
+        .size_full()
+        .overflow_y_hidden()
+        .child(header_elem)
+        .child(content_elem)
+}
+
+/// Standard page title header (used by all non-sub pages).
+fn page_header(title: &str, theme: &Theme) -> impl IntoElement {
+    let title = title.to_string();
+    div()
         .flex()
         .px(px(24.0))
         .pt(px(24.0))
@@ -33,26 +79,46 @@ pub fn render_page(
                 .font_weight(FontWeight::BOLD)
                 .text_color(rgb(theme.text_primary))
                 .child(title),
-        );
+        )
+}
 
-    let content = match page {
-        Page::Dashboard => div().child(dashboard_view(theme, cx)),
-        Page::Proxies => div().child(proxies_view(theme)),
-        Page::Profiles => div().child(profiles_view(theme)),
-        Page::Requests => div().child(requests_view(theme)),
-        Page::Connections => div().child(connections_view(theme)),
-        Page::Resources => div().child(resources_view(theme)),
-        Page::Logs => div().child(logs_view(theme)),
-        Page::Tools => div().child(tools_view(theme, cx)),
+/// Header with back button for Settings sub-pages.
+fn render_sub_page_header(
+    sub: ToolsSubPage,
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+) -> impl IntoElement {
+    let title = match sub {
+        ToolsSubPage::Language => strings.page_title_language,
     };
-
     div()
         .flex()
-        .flex_col()
-        .size_full()
-        .overflow_y_hidden()
-        .child(header)
-        .child(content)
+        .items_center()
+        .justify_between()
+        .px(px(24.0))
+        .pt(px(24.0))
+        .pb(px(16.0))
+        .child(
+            div()
+                .text_size(px(22.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(rgb(theme.text_primary))
+                .child(title),
+        )
+        .child(back_button(theme, cx))
+}
+
+/// Body content for Settings sub-pages.
+fn render_sub_page_body(
+    sub: ToolsSubPage,
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+) -> impl IntoElement {
+    match sub {
+        ToolsSubPage::Language => language_sub_page_body(theme, cx, strings),
+    }
 }
 
 // ─── Dashboard ─────────────────────────────────────────────────
@@ -74,6 +140,7 @@ pub fn render_page(
 fn dashboard_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let state = cx.global::<AppState>();
     let core_running = state.core_running;
@@ -100,6 +167,7 @@ fn dashboard_view(
             upload_speed,
             download_speed,
             core_running,
+            strings,
         ))
         // ── Middle: Two-column grid ──────────────────────────
         .child(
@@ -115,10 +183,10 @@ fn dashboard_view(
                         .flex_1()
                         // Proxy control card
                         .child(proxy_control_card(
-                            theme, system_proxy, tun_mode, outbound_mode,
+                            theme, system_proxy, tun_mode, outbound_mode, strings,
                         ))
                         // LAN IP card
-                        .child(lan_ip_card(theme, lan_ip.as_deref())),
+                        .child(lan_ip_card(theme, lan_ip.as_deref(), strings)),
                 )
                 // Right column
                 .child(
@@ -129,16 +197,16 @@ fn dashboard_view(
                         .flex_1()
                         // Traffic stats card
                         .child(traffic_stats_card(
-                            theme, upload_total, download_total,
+                            theme, upload_total, download_total, strings,
                         ))
                         // Network detection card
                         .child(network_detection_card(
-                            theme, public_ip.as_deref(), isp.as_deref(),
+                            theme, public_ip.as_deref(), isp.as_deref(), strings,
                         )),
                 ),
         )
         // ── Bottom: Core Control Button ────────────────────
-        .child(core_control_button(theme, core_running))
+        .child(core_control_button(theme, core_running, strings))
 }
 
 // ─── Network Speed Card ────────────────────────────────────
@@ -149,6 +217,7 @@ fn network_speed_card(
     upload_speed: u64,
     download_speed: u64,
     core_running: bool,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let up_str = format_speed(upload_speed);
     let down_str = format_speed(download_speed);
@@ -159,6 +228,9 @@ fn network_speed_card(
     } else {
         rgb(theme.text_disabled)
     };
+    let title = strings.dashboard_network_speed;
+    let upload_label = strings.dashboard_upload;
+    let download_label = strings.dashboard_download;
 
     div()
         .flex()
@@ -174,7 +246,7 @@ fn network_speed_card(
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_primary))
-                .child("Network Speed"),
+                .child(title),
         )
         .child(
             div().flex().gap(px(32.0)).items_end()
@@ -188,7 +260,7 @@ fn network_speed_card(
                                 )
                                 .child(
                                     div().text_size(px(13.0)).text_color(rgb(theme.text_secondary))
-                                        .child("Upload"),
+                                        .child(upload_label),
                                 ),
                         )
                         .child(
@@ -206,7 +278,7 @@ fn network_speed_card(
                                 )
                                 .child(
                                     div().text_size(px(13.0)).text_color(rgb(theme.text_secondary))
-                                        .child("Download"),
+                                        .child(download_label),
                                 ),
                         )
                         .child(
@@ -255,18 +327,24 @@ fn proxy_control_card(
     system_proxy: bool,
     tun_mode: bool,
     outbound_mode: OutboundMode,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     // System Proxy switch visuals (eager, used in closure)
     let sp_active = system_proxy;
-    let sp_state_text = if sp_active { "ON" } else { "OFF" };
+    let sp_state_text = if sp_active { strings.dashboard_status_on } else { strings.dashboard_status_off };
     let sp_state_color = if sp_active { rgb(theme.status_success) } else { rgb(theme.text_disabled) };
     let sp_track = if sp_active { rgb(theme.accent) } else { rgb(theme.border) };
 
     // TUN Mode switch visuals
     let tun_active = tun_mode;
-    let tun_state_text = if tun_active { "ON" } else { "OFF" };
+    let tun_state_text = if tun_active { strings.dashboard_status_on } else { strings.dashboard_status_off };
     let tun_state_color = if tun_active { rgb(theme.status_success) } else { rgb(theme.text_disabled) };
     let tun_track = if tun_active { rgb(theme.accent) } else { rgb(theme.border) };
+
+    let title = strings.dashboard_proxy_control;
+    let sys_proxy_label = strings.dashboard_system_proxy;
+    let tun_label = strings.dashboard_tun_mode;
+    let outbound_label = strings.dashboard_outbound_mode;
 
     div()
         .flex()
@@ -282,7 +360,7 @@ fn proxy_control_card(
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_primary))
-                .child("Proxy Control"),
+                .child(title),
         )
         // System Proxy switch
         .child(
@@ -293,7 +371,7 @@ fn proxy_control_card(
                 .on_click(|_: &ClickEvent, _: &mut Window, cx: &mut App| {
                     cx.dispatch_action(&ToggleSystemProxy);
                 })
-                .child(div().text_size(px(13.0)).text_color(rgb(theme.text_primary)).child("System Proxy"))
+                .child(div().text_size(px(13.0)).text_color(rgb(theme.text_primary)).child(sys_proxy_label))
                 .child(switch_pill(sp_state_text, sp_state_color, sp_track)),
         )
         // Divider
@@ -307,7 +385,7 @@ fn proxy_control_card(
                 .on_click(|_: &ClickEvent, _: &mut Window, cx: &mut App| {
                     cx.dispatch_action(&ToggleTunMode);
                 })
-                .child(div().text_size(px(13.0)).text_color(rgb(theme.text_primary)).child("TUN Mode"))
+                .child(div().text_size(px(13.0)).text_color(rgb(theme.text_primary)).child(tun_label))
                 .child(switch_pill(tun_state_text, tun_state_color, tun_track)),
         )
         // Divider
@@ -317,9 +395,9 @@ fn proxy_control_card(
             div().flex().flex_col().gap(px(8.0))
                 .child(
                     div().text_size(px(13.0)).text_color(rgb(theme.text_secondary))
-                        .child("Outbound Mode"),
+                        .child(outbound_label),
                 )
-                .child(outbound_mode_selector(theme, outbound_mode)),
+                .child(outbound_mode_selector(theme, outbound_mode, strings)),
         )
 }
 
@@ -351,8 +429,9 @@ fn switch_pill(
 
 // ─── LAN IP Card (Left Column Bottom) ─────────────────────
 
-fn lan_ip_card(theme: &Theme, lan_ip: Option<&str>) -> impl IntoElement {
-    let ip = lan_ip.unwrap_or("Detecting...").to_string();
+fn lan_ip_card(theme: &Theme, lan_ip: Option<&str>, strings: &I18nStrings) -> impl IntoElement {
+    let ip = lan_ip.unwrap_or(strings.network_detecting).to_string();
+    let title = strings.dashboard_lan_ip;
 
     div()
         .flex()
@@ -368,7 +447,7 @@ fn lan_ip_card(theme: &Theme, lan_ip: Option<&str>) -> impl IntoElement {
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_primary))
-                .child("LAN IP"),
+                .child(title),
         )
         .child(
             div()
@@ -386,6 +465,7 @@ fn traffic_stats_card(
     theme: &Theme,
     upload_total: u64,
     download_total: u64,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let up_str = format_bytes(upload_total);
     let down_str = format_bytes(download_total);
@@ -395,6 +475,9 @@ fn traffic_stats_card(
     } else {
         50
     };
+    let title = strings.dashboard_traffic_usage;
+    let upload_label = strings.dashboard_upload;
+    let download_label = strings.dashboard_download;
 
     div()
         .flex()
@@ -410,7 +493,7 @@ fn traffic_stats_card(
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_primary))
-                .child("Traffic Usage"),
+                .child(title),
         )
         .child(
             div().flex().gap(px(20.0)).items_center()
@@ -419,8 +502,8 @@ fn traffic_stats_card(
                 // Stats labels
                 .child(
                     div().flex().flex_col().gap(px(10.0)).flex_1()
-                        .child(stat_row("Upload", &up_str, theme.status_info, theme))
-                        .child(stat_row("Download", &down_str, theme.status_success, theme)),
+                        .child(stat_row(upload_label, &up_str, theme.status_info, theme))
+                        .child(stat_row(download_label, &down_str, theme.status_success, theme)),
                 ),
         )
 }
@@ -466,9 +549,13 @@ fn network_detection_card(
     theme: &Theme,
     public_ip: Option<&str>,
     _isp: Option<&str>,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
-    let ip = public_ip.unwrap_or("N/A");
-    let isp = _isp.unwrap_or("Unknown");
+    let ip = public_ip.unwrap_or(strings.network_na);
+    let isp = _isp.unwrap_or(strings.network_unknown);
+    let title = strings.dashboard_network_detection;
+    let ip_label = strings.network_ip_label;
+    let isp_label = strings.network_isp_label;
 
     div()
         .flex()
@@ -484,12 +571,12 @@ fn network_detection_card(
                 .text_size(px(14.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_primary))
-                .child("Network Detection"),
+                .child(title),
         )
         .child(
             div().flex().flex_col().gap(px(6.0))
-                .child(info_row("IP", ip, theme))
-                .child(info_row("ISP", isp, theme)),
+                .child(info_row(ip_label, ip, theme))
+                .child(info_row(isp_label, isp, theme)),
         )
 }
 
@@ -512,11 +599,12 @@ fn info_row(label: &str, value: &str, theme: &Theme) -> impl IntoElement {
 fn core_control_button(
     theme: &Theme,
     core_running: bool,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let (label_text, bg_color) = if core_running {
-        ("Stop Core", theme.status_error)
+        (strings.core_stop, theme.status_error)
     } else {
-        ("Start Core", theme.accent)
+        (strings.core_start, theme.accent)
     };
     let label_text = label_text.to_string();
 
@@ -544,7 +632,7 @@ fn core_control_button(
 
 // ─── Outbound Mode Selector ──────────────────────────────
 
-fn outbound_mode_selector(theme: &Theme, current: OutboundMode) -> impl IntoElement {
+fn outbound_mode_selector(theme: &Theme, current: OutboundMode, strings: &I18nStrings) -> impl IntoElement {
     let modes = [OutboundMode::Rule, OutboundMode::Global, OutboundMode::Direct];
 
     div()
@@ -555,7 +643,7 @@ fn outbound_mode_selector(theme: &Theme, current: OutboundMode) -> impl IntoElem
         .p(px(4.0))
         .children(modes.into_iter().map(|mode| {
             let is_active = mode == current;
-            let label = mode.label().to_string();
+            let label = strings.outbound_mode_label(mode);
             let bg = if is_active {
                 rgb(theme.surface)
             } else {
@@ -573,7 +661,7 @@ fn outbound_mode_selector(theme: &Theme, current: OutboundMode) -> impl IntoElem
             };
 
             div()
-                .id(mode.label())
+                .id(label)
                 .flex()
                 .items_center()
                 .justify_center()
@@ -633,60 +721,60 @@ fn format_bytes(bytes: u64) -> String {
 
 // ─── Proxies ───────────────────────────────────────────────────
 
-fn proxies_view(theme: &Theme) -> impl IntoElement {
+fn proxies_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Proxy Groups",
-        "Proxy groups will appear here when the core is connected.",
+        strings.placeholder_proxies_title,
+        strings.placeholder_proxies_desc,
         theme,
     )
 }
 
 // ─── Profiles ──────────────────────────────────────────────────
 
-fn profiles_view(theme: &Theme) -> impl IntoElement {
+fn profiles_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Profiles",
-        "Import or add subscription profiles to get started.",
+        strings.placeholder_profiles_title,
+        strings.placeholder_profiles_desc,
         theme,
     )
 }
 
 // ─── Requests ──────────────────────────────────────────────────
 
-fn requests_view(theme: &Theme) -> impl IntoElement {
+fn requests_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Request Timeline",
-        "Real-time request tracking will appear here.",
+        strings.placeholder_requests_title,
+        strings.placeholder_requests_desc,
         theme,
     )
 }
 
 // ─── Connections ───────────────────────────────────────────────
 
-fn connections_view(theme: &Theme) -> impl IntoElement {
+fn connections_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Active Connections",
-        "Active connections will be listed here.",
+        strings.placeholder_connections_title,
+        strings.placeholder_connections_desc,
         theme,
     )
 }
 
 // ─── Resources ─────────────────────────────────────────────────
 
-fn resources_view(theme: &Theme) -> impl IntoElement {
+fn resources_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Resources",
-        "GeoIP, GeoSite, and other resource files will be managed here.",
+        strings.placeholder_resources_title,
+        strings.placeholder_resources_desc,
         theme,
     )
 }
 
 // ─── Logs ──────────────────────────────────────────────────────
 
-fn logs_view(theme: &Theme) -> impl IntoElement {
+fn logs_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
-        "Core Logs",
-        "Logs from the proxy core will stream here.",
+        strings.placeholder_logs_title,
+        strings.placeholder_logs_desc,
         theme,
     )
 }
@@ -696,24 +784,193 @@ fn logs_view(theme: &Theme) -> impl IntoElement {
 fn tools_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let settings_groups = div()
         .flex()
         .flex_col()
         .gap(px(4.0))
         .px(px(24.0))
-        .child(theme_toggle_item(theme, cx))
-        .child(settings_item("Basic Config", "Port, log level, mode", theme))
-        .child(settings_item(
-            "Advanced Config",
-            "DNS, TUN, rules",
-            theme,
-        ))
-        .child(settings_item("Hotkeys", "Keyboard shortcuts", theme))
-        .child(settings_item("Backup & Restore", "WebDAV sync", theme))
-        .child(settings_item("About", "Version and license info", theme));
+        .child(language_entry_item(theme, cx, strings))
+        .child(theme_toggle_item(theme, cx, strings))
+        .child(settings_item(strings.settings_basic_config, strings.settings_basic_config_subtitle, theme))
+        .child(settings_item(strings.settings_advanced_config, strings.settings_advanced_config_subtitle, theme))
+        .child(settings_item(strings.settings_hotkeys, strings.settings_hotkeys_subtitle, theme))
+        .child(settings_item(strings.settings_backup_restore, strings.settings_backup_restore_subtitle, theme))
+        .child(settings_item(strings.settings_about, strings.settings_about_subtitle, theme));
 
     settings_groups
+}
+
+// ─── Language Entry (Settings Row → Sub-page) ─────────────────
+
+/// A clickable settings row that navigates to the language selection sub-page.
+fn language_entry_item(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+) -> impl IntoElement {
+    let current_lang = cx.global::<crate::i18n::I18nManager>().current_language_id.clone();
+    let display = language_display_name(&current_lang);
+
+    div()
+        .id("settings-language-entry")
+        .flex()
+        .items_center()
+        .justify_between()
+        .px(px(16.0))
+        .py(px(14.0))
+        .rounded(px(6.0))
+        .cursor_pointer()
+        .hover(|s| s.bg(rgb(theme.surface)))
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.tools_sub_page = Some(ToolsSubPage::Language);
+            cx.notify();
+        }))
+        .child(
+            div().flex().flex_col().gap(px(2.0)).child(
+                div()
+                    .text_size(px(14.0))
+                    .text_color(rgb(theme.text_primary))
+                    .child(strings.settings_language),
+            )
+            .child(
+                div()
+                    .text_size(px(12.0))
+                    .text_color(rgb(theme.text_secondary))
+                    .child(display),
+            ),
+        )
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(rgb(theme.text_disabled))
+                .child("\u{203A}"), // ›
+        )
+}
+
+// ─── Language Sub-page Body ───────────────────────────────────
+
+fn language_sub_page_body(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+) -> impl IntoElement {
+    let current_lang = cx.global::<crate::i18n::I18nManager>().current_language_id.clone();
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(2.0))
+        .px(px(24.0))
+        .child(
+            div()
+                .px(px(16.0))
+                .py(px(8.0))
+                .text_size(px(12.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(theme.text_secondary))
+                .child(strings.settings_language),
+        )
+        .child(lang_option_row(theme, "en-US", "English", &current_lang))
+        .child(lang_option_row(theme, "zh-CN", "简体中文", &current_lang))
+}
+
+/// Back button that returns to the main settings list.
+fn back_button(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+) -> impl IntoElement {
+    div()
+        .id("btn-back-settings")
+        .flex()
+        .items_center()
+        .justify_center()
+        .w(px(32.0))
+        .h(px(32.0))
+        .rounded(px(8.0))
+        .cursor_pointer()
+        .bg(rgba(0x00000000))
+        .hover(|s| s.bg(rgb(theme.surface)))
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.tools_sub_page = None;
+            cx.notify();
+        }))
+        .child(
+            svg()
+                .path("icon/arrow-back.svg")
+                .size(px(20.0))
+                .text_color(rgb(theme.accent)),
+        )
+}
+
+/// Single language option row for the sub-page.
+fn lang_option_row(
+    theme: &Theme,
+    lang_id: &'static str,
+    lang_name: &'static str,
+    current_lang: &str,
+) -> impl IntoElement {
+    let is_active = lang_id == current_lang;
+    let id = if lang_id == "en-US" { "lang-en" } else { "lang-zh" };
+    let lang_id = lang_id.to_string();
+    let lang_name = lang_name.to_string();
+
+    div()
+        .id(id)
+        .flex()
+        .items_center()
+        .gap(px(10.0))
+        .px(px(16.0))
+        .py(px(12.0))
+        .rounded(px(6.0))
+        .cursor_pointer()
+        .hover(|s| {
+            s.bg(rgb(theme.surface))
+        })
+        .on_click(move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
+            crate::i18n::I18nManager::init_with_language_id(cx, &lang_id);
+            save_language_id(&lang_id);
+            cx.refresh_windows();
+        })
+        .child(
+            div()
+                .w(px(18.0))
+                .h(px(18.0))
+                .rounded(px(9.0))
+                .border_1()
+                .border_color(if is_active {
+                    Hsla::from(rgb(theme.accent))
+                } else {
+                    Hsla::from(rgb(theme.border))
+                })
+                .bg(if is_active {
+                    Hsla::from(rgb(theme.accent))
+                } else {
+                    Hsla::from(rgba(0x00000000))
+                })
+                .flex()
+                .items_center()
+                .justify_center()
+                .when(is_active, |s| {
+                    s.child(div().w(px(6.0)).h(px(6.0)).rounded(px(3.0)).bg(rgb(0xffffff)))
+                }),
+        )
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(if is_active {
+                    Hsla::from(rgb(theme.accent))
+                } else {
+                    Hsla::from(rgb(theme.text_primary))
+                })
+                .font_weight(if is_active {
+                    FontWeight::SEMIBOLD
+                } else {
+                    FontWeight::NORMAL
+                })
+                .child(lang_name),
+        )
 }
 
 // ─── Theme Toggle (interactive) ────────────────────────────────
@@ -721,8 +978,11 @@ fn tools_view(
 fn theme_toggle_item(
     theme: &Theme,
     _cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
 ) -> impl IntoElement {
     let accent_color = rgb(theme.accent);
+    let title = strings.settings_theme;
+    let subtitle = strings.settings_theme_subtitle;
     div()
         .id("theme-toggle")
         .flex()
@@ -745,13 +1005,13 @@ fn theme_toggle_item(
                 div()
                     .text_size(px(14.0))
                     .text_color(accent_color)
-                    .child("Theme"),
+                    .child(title),
             )
             .child(
                 div()
                     .text_size(px(12.0))
                     .text_color(rgb(theme.text_secondary))
-                    .child("Dark / Light — tap to switch appearance"),
+                    .child(subtitle),
             ),
         )
         .child(

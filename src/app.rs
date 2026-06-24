@@ -8,13 +8,16 @@ use gpui::*;
 use crate::components::sidebar;
 use crate::components::titlebar;
 use crate::current_theme;
-use crate::navigation::Page;
+use crate::i18n::I18nManager;
+use crate::navigation::{Page, ToolsSubPage};
 use crate::views;
 
 /// The root view that composes sidebar navigation with page content.
 pub struct AppView {
     /// Currently active page — drives both sidebar highlight and content rendering.
     pub current_page: Page,
+    /// Active sub-page within Settings (Tools). `None` means show the main settings list.
+    pub tools_sub_page: Option<ToolsSubPage>,
 }
 
 impl Render for AppView {
@@ -24,11 +27,12 @@ impl Render for AppView {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let theme = current_theme(cx);
+        let strings = cx.global::<I18nManager>().strings_arc();
 
         // Build sidebar first (consumes cx borrow), then content.
-        let sidebar = sidebar::render_sidebar(self.current_page, cx, &theme);
-        let content = views::render_page(self.current_page, &theme, cx);
-        let titlebar = titlebar::render_titlebar(&theme, window);
+        let sidebar = sidebar::render_sidebar(self.current_page, cx, &theme, &strings);
+        let content = views::render_page(self.current_page, self.tools_sub_page, &theme, cx);
+        let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 
         div()
             .flex()

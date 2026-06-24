@@ -16,6 +16,13 @@ pub enum Page {
     Tools,
 }
 
+/// Sub-pages within the Settings (Tools) page.
+/// Used for drill-down navigation with a back button.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolsSubPage {
+    Language,
+}
+
 impl Page {
     /// All pages in display order.
     pub const ALL: &'static [Page] = &[

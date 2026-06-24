@@ -8,6 +8,7 @@ license = "GPL-3.0"
 [dependencies]
 gpui = "*"
 anyhow = "1"
+sys-locale = "0.3"
 
 [build-dependencies]
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use gpui::*;
 
+use crate::i18n::I18nStrings;
 use crate::navigation::Page;
 use crate::theme::Theme;
 
@@ -15,10 +16,12 @@ use crate::theme::Theme;
 /// - `current_page`: the currently active page (highlighted in the sidebar)
 /// - `cx`: listener context from `AppView`, used to attach click handlers
 /// - `theme`: the active colour palette
+/// - `strings`: localised UI strings
 pub fn render_sidebar(
     current_page: Page,
     cx: &mut Context<crate::app::AppView>,
     theme: &Theme,
+    strings: &I18nStrings,
 ) -> impl IntoElement + use<> {
     // ── Logo area ──────────────────────────────────────────────
     let logo = div()
@@ -46,7 +49,8 @@ pub fn render_sidebar(
     for page in Page::ALL {
         let is_active = *page == current_page;
         let icon_path = page.icon_path();
-        let title = page.title();
+        let title = strings.page_title(*page);
+        let id = page.title(); // keep English key as DOM id
         let icon_color = if is_active {
             rgb(theme.accent)
         } else {
@@ -55,7 +59,7 @@ pub fn render_sidebar(
 
         nav_items = nav_items.child(
             div()
-                .id(page.title())
+                .id(id)
                 .flex()
                 .items_center()
                 .gap(px(10.0))
