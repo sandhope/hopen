@@ -3,6 +3,8 @@
 /// Renders a vertical navigation panel with page icons and labels.
 /// Follows a Zed-inspired design: clean, minimal, theme-aware.
 
+use std::path::PathBuf;
+
 use gpui::*;
 
 use crate::navigation::Page;
@@ -22,14 +24,13 @@ pub fn render_sidebar(
     let logo = div()
         .flex()
         .items_center()
-        .px(px(16.0))
+        //.justify_center()
+        .ml(px(20.0))
+        .mt(px(12.0))
         .h(px(56.0))
         .child(
-            div()
-                .text_size(px(18.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(rgb(theme.accent))
-                .child("Hopen"),
+            img(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/app-icon.png"))
+                .size(px(40.0)),
         );
 
     // ── Divider ────────────────────────────────────────────────
@@ -97,17 +98,6 @@ pub fn render_sidebar(
     // ── Spacer ─────────────────────────────────────────────────
     let spacer = div().flex_1();
 
-    // ── Footer (version) ───────────────────────────────────────
-    let footer = div()
-        .px(px(16.0))
-        .pb(px(12.0))
-        .child(
-            div()
-                .text_size(px(11.0))
-                .text_color(rgb(theme.text_disabled))
-                .child(format!("v{}", env!("CARGO_PKG_VERSION"))),
-        );
-
     // ── Sidebar container ──────────────────────────────────────
     div()
         .flex()
@@ -121,5 +111,4 @@ pub fn render_sidebar(
         .child(divider)
         .child(nav_items)
         .child(spacer)
-        .child(footer)
 }

@@ -197,6 +197,7 @@ fn main() {
                 window_bounds: Some(WindowBounds::Windowed(window_bounds)),
                 titlebar: Some(TitlebarOptions {
                     title: Some(SharedString::from("Hopen")),
+                    appears_transparent: true,
                     ..Default::default()
                 }),
                 window_background: WindowBackgroundAppearance::Opaque,

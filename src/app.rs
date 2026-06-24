@@ -6,6 +6,7 @@
 use gpui::*;
 
 use crate::components::sidebar;
+use crate::components::titlebar;
 use crate::current_theme;
 use crate::navigation::Page;
 use crate::views;
@@ -27,15 +28,24 @@ impl Render for AppView {
         // Build sidebar first (consumes cx borrow), then content.
         let sidebar = sidebar::render_sidebar(self.current_page, cx, &theme);
         let content = views::render_page(self.current_page, &theme, cx);
+        let titlebar = titlebar::render_titlebar(&theme);
 
         div()
             .flex()
+            .flex_col()
             .size_full()
             .bg(rgb(theme.content_bg))
             .text_color(rgb(theme.text_primary))
-            // Sidebar (fixed width, full height)
-            .child(sidebar)
-            // Content area (flex-grows to fill remaining space)
-            .child(div().flex().flex_col().flex_1().overflow_hidden().child(content))
+            // Custom titlebar
+            .child(titlebar)
+            // Body: sidebar + content
+            .child(
+                div()
+                    .flex()
+                    .flex_1()
+                    .overflow_hidden()
+                    .child(sidebar)
+                    .child(div().flex().flex_col().flex_1().overflow_hidden().child(content)),
+            )
     }
 }
