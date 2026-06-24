@@ -20,7 +20,7 @@ pub struct AppView {
 impl Render for AppView {
     fn render(
         &mut self,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let theme = current_theme(cx);
@@ -28,7 +28,7 @@ impl Render for AppView {
         // Build sidebar first (consumes cx borrow), then content.
         let sidebar = sidebar::render_sidebar(self.current_page, cx, &theme);
         let content = views::render_page(self.current_page, &theme, cx);
-        let titlebar = titlebar::render_titlebar(&theme);
+        let titlebar = titlebar::render_titlebar(&theme, window);
 
         div()
             .flex()
@@ -38,11 +38,12 @@ impl Render for AppView {
             .text_color(rgb(theme.text_primary))
             // Custom titlebar
             .child(titlebar)
-            // Body: sidebar + content
+            // Body: sidebar + content — offset by titlebar height
             .child(
                 div()
                     .flex()
                     .flex_1()
+                    .pt(px(titlebar::TITLEBAR_HEIGHT))
                     .overflow_hidden()
                     .child(sidebar)
                     .child(div().flex().flex_col().flex_1().overflow_hidden().child(content)),

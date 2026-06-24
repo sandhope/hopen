@@ -71,6 +71,14 @@ pub struct Theme {
     // Sidebar
     pub sidebar_active_bg: u32,
     pub sidebar_hover_bg: u32,
+    // Titlebar
+    pub titlebar_bg: u32,
+    pub titlebar_border: u32,
+    pub titlebar_text: u32,
+    pub titlebar_icon: u32,
+    pub titlebar_button_hover_bg: u32,
+    pub titlebar_close_hover_bg: u32,
+    pub titlebar_close_hover_text: u32,
 }
 
 impl Theme {
@@ -95,6 +103,14 @@ impl Theme {
             border_light: 0x27272a,
             sidebar_active_bg: 0x27272a,
             sidebar_hover_bg: 0x1f1f23,
+            // Titlebar — dark
+            titlebar_bg: 0x18181b,
+            titlebar_border: 0x27272a,
+            titlebar_text: 0xf4f4f5,
+            titlebar_icon: 0xf4f4f5,
+            titlebar_button_hover_bg: 0x3f3f46,
+            titlebar_close_hover_bg: 0xef4444,
+            titlebar_close_hover_text: 0xffffff,
         }
     }
 
@@ -119,6 +135,14 @@ impl Theme {
             border_light: 0xe4e4e7,
             sidebar_active_bg: 0xe4e4e7,
             sidebar_hover_bg: 0xeeeeee,
+            // Titlebar — light
+            titlebar_bg: 0xffffff,
+            titlebar_border: 0xd1d5db,
+            titlebar_text: 0x1f2937,
+            titlebar_icon: 0x18181b,
+            titlebar_button_hover_bg: 0xe2e8f0,
+            titlebar_close_hover_bg: 0xdc2626,
+            titlebar_close_hover_text: 0xffffff,
         }
     }
 
