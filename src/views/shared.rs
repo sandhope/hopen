@@ -82,8 +82,8 @@ pub(super) fn back_button(
         .flex()
         .items_center()
         .justify_center()
-        .w(px(32.0))
-        .h(px(32.0))
+        .w(px(36.0))
+        .h(px(36.0))
         .rounded(px(8.0))
         .cursor_pointer()
         .bg(rgba(0x00000000))
@@ -95,7 +95,7 @@ pub(super) fn back_button(
         .child(
             svg()
                 .path("icon/arrow-back.svg")
-                .size(px(20.0))
+                .size(px(22.0))
                 .text_color(rgb(theme.accent)),
         )
 }

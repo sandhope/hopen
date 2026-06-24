@@ -17,7 +17,7 @@ use app::AppView;
 use assets::Assets;
 use i18n::I18nManager;
 use navigation::Page;
-use theme::{Theme, ThemeMode};
+use theme::{AccentColor, Theme, ThemeMode};
 
 // ─── Outbound Mode ────────────────────────────────────────────
 
@@ -62,8 +62,10 @@ pub struct AppState {
     pub system_proxy: bool,
     /// TUN mode status.
     pub tun_mode: bool,
-    /// Active colour theme.
+    /// Active colour theme (dark / light).
     pub theme_mode: ThemeMode,
+    /// Selected accent colour preset.
+    pub accent_color: AccentColor,
     /// Current outbound routing mode.
     pub outbound_mode: OutboundMode,
     /// Network traffic statistics (placeholder).
@@ -81,7 +83,15 @@ impl Global for AppState {}
 
 /// Convenience: read the current `Theme` palette from global state.
 pub fn current_theme(cx: &App) -> Theme {
-    Theme::from_mode(cx.global::<AppState>().theme_mode)
+    let state = cx.global::<AppState>();
+    let mode = match state.theme_mode {
+        ThemeMode::System => match cx.window_appearance() {
+            WindowAppearance::Dark | WindowAppearance::VibrantDark => ThemeMode::Dark,
+            _ => ThemeMode::Light,
+        },
+        other => other,
+    };
+    Theme::from_mode(mode, state.accent_color)
 }
 
 // ─── Keyboard Actions ──────────────────────────────────────────
@@ -114,6 +124,7 @@ fn main() {
             system_proxy: false,
             tun_mode: false,
             theme_mode: load_theme_mode(),
+            accent_color: load_accent_color(),
             outbound_mode: OutboundMode::default(),
             upload_speed: 0,
             download_speed: 0,
@@ -256,6 +267,7 @@ pub(crate) fn load_theme_mode() -> ThemeMode {
         .and_then(|s| match s.as_str() {
             "dark" => Some(ThemeMode::Dark),
             "light" => Some(ThemeMode::Light),
+            "system" => Some(ThemeMode::System),
             _ => None,
         })
         .unwrap_or_default()
@@ -279,6 +291,33 @@ pub(crate) fn save_language_id(id: &str) {
     let dir = config_dir();
     let _ = std::fs::create_dir_all(&dir);
     let _ = std::fs::write(dir.join("lang"), id);
+}
+
+/// Load the saved accent colour from disk, defaulting to Teal.
+pub(crate) fn load_accent_color() -> AccentColor {
+    let path = config_dir().join("accent");
+    std::fs::read_to_string(&path)
+        .ok()
+        .map(|s| s.trim().to_lowercase())
+        .and_then(|s| match s.as_str() {
+            "teal" => Some(AccentColor::Teal),
+            "blue" => Some(AccentColor::Blue),
+            "purple" => Some(AccentColor::Purple),
+            "pink" => Some(AccentColor::Pink),
+            "red" => Some(AccentColor::Red),
+            "orange" => Some(AccentColor::Orange),
+            "green" => Some(AccentColor::Green),
+            "yellow" => Some(AccentColor::Yellow),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+/// Persist the current accent colour to disk.
+pub(crate) fn save_accent_color(color: AccentColor) {
+    let dir = config_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join("accent"), color.label());
 }
 
 // ─── Navigation ─────────────────────────────────────────────

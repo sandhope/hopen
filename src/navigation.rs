@@ -21,6 +21,7 @@ pub enum Page {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolsSubPage {
     Language,
+    Theme,
 }
 
 impl Page {

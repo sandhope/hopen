@@ -100,10 +100,14 @@ pub struct I18nStrings {
     // Theme
     pub theme_dark: &'static str,
     pub theme_light: &'static str,
+    pub theme_system: &'static str,
+    pub theme_mode_label: &'static str,
 
     // Sub-page navigation
     pub nav_back: &'static str,
     pub page_title_language: &'static str,
+    pub page_title_theme: &'static str,
+    pub accent_color_label: &'static str,
 }
 
 impl I18nStrings {
@@ -178,9 +182,13 @@ impl I18nStrings {
 
             theme_dark: "Dark",
             theme_light: "Light",
+            theme_system: "System",
+            theme_mode_label: "Theme Mode",
 
             nav_back: "Back",
             page_title_language: "Language",
+            page_title_theme: "Theme",
+            accent_color_label: "Accent Color",
         }
     }
 
@@ -255,9 +263,13 @@ impl I18nStrings {
 
             theme_dark: "深色",
             theme_light: "浅色",
+            theme_system: "跟随系统",
+            theme_mode_label: "主题模式",
 
             nav_back: "返回",
             page_title_language: "语言",
+            page_title_theme: "主题",
+            accent_color_label: "主题色彩",
         }
     }
 
@@ -332,9 +344,13 @@ impl I18nStrings {
 
             theme_dark: "ダーク",
             theme_light: "ライト",
+            theme_system: "システムに合わせる",
+            theme_mode_label: "テーマモード",
 
             nav_back: "戻る",
             page_title_language: "言語",
+            page_title_theme: "テーマ",
+            accent_color_label: "アクセントカラー",
         }
     }
 
@@ -409,9 +425,13 @@ impl I18nStrings {
 
             theme_dark: "다크",
             theme_light: "라이트",
+            theme_system: "시스템 설정",
+            theme_mode_label: "테마 모드",
 
             nav_back: "뒤로",
             page_title_language: "언어",
+            page_title_theme: "테마",
+            accent_color_label: "강조 색상",
         }
     }
 
@@ -486,9 +506,13 @@ impl I18nStrings {
 
             theme_dark: "Dunkel",
             theme_light: "Hell",
+            theme_system: "System",
+            theme_mode_label: "Designmodus",
 
             nav_back: "Zurück",
             page_title_language: "Sprache",
+            page_title_theme: "Design",
+            accent_color_label: "Akzentfarbe",
         }
     }
 
@@ -563,9 +587,13 @@ impl I18nStrings {
 
             theme_dark: "Sombre",
             theme_light: "Clair",
+            theme_system: "Système",
+            theme_mode_label: "Mode de thème",
 
             nav_back: "Retour",
             page_title_language: "Langue",
+            page_title_theme: "Thème",
+            accent_color_label: "Couleur d'accent",
         }
     }
 
@@ -640,9 +668,13 @@ impl I18nStrings {
 
             theme_dark: "Oscuro",
             theme_light: "Claro",
+            theme_system: "Sistema",
+            theme_mode_label: "Modo de tema",
 
             nav_back: "Volver",
             page_title_language: "Idioma",
+            page_title_theme: "Tema",
+            accent_color_label: "Color de acento",
         }
     }
 
@@ -717,9 +749,13 @@ impl I18nStrings {
 
             theme_dark: "Escuro",
             theme_light: "Claro",
+            theme_system: "Sistema",
+            theme_mode_label: "Modo de tema",
 
             nav_back: "Voltar",
             page_title_language: "Idioma",
+            page_title_theme: "Tema",
+            accent_color_label: "Cor de destaque",
         }
     }
 

@@ -39,7 +39,7 @@ pub fn render_page(
     let (header_elem, content_elem): (AnyElement, AnyElement) = if page == Page::Tools {
         if let Some(sub) = tools_sub_page {
             let header = render_sub_page_header(sub, theme, cx, &strings).into_any_element();
-            let body = render_sub_page_body(sub, theme, cx, &strings).into_any_element();
+            let body = render_sub_page_body(sub, theme, cx, &strings);
             (header, body)
         } else {
             let title = strings.page_title(page);
@@ -98,6 +98,7 @@ fn render_sub_page_header(
 ) -> impl IntoElement {
     let title = match sub {
         ToolsSubPage::Language => strings.page_title_language,
+        ToolsSubPage::Theme => strings.page_title_theme,
     };
     div()
         .flex()
@@ -122,8 +123,9 @@ fn render_sub_page_body(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-) -> impl IntoElement {
+) -> AnyElement {
     match sub {
-        ToolsSubPage::Language => settings::language_sub_page_body(theme, cx, strings),
+        ToolsSubPage::Language => settings::language_sub_page_body(theme, cx, strings).into_any_element(),
+        ToolsSubPage::Theme => settings::theme_sub_page_body(theme, cx, strings).into_any_element(),
     }
 }
