@@ -4,6 +4,7 @@
 /// and wires up global state and keyboard shortcuts.
 
 mod app;
+mod assets;
 mod components;
 mod navigation;
 mod theme;
@@ -12,6 +13,7 @@ mod views;
 use gpui::*;
 
 use app::AppView;
+use assets::Assets;
 use navigation::Page;
 use theme::{Theme, ThemeMode};
 
@@ -101,7 +103,9 @@ actions!(
 // ─── Main ──────────────────────────────────────────────────────
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    Application::new()
+        .with_assets(Assets::new())
+        .run(|cx: &mut App| {
         // Initialize global state
         cx.set_global(AppState {
             core_running: false,

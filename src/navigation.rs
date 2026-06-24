@@ -43,18 +43,17 @@ impl Page {
         }
     }
 
-    /// Unicode icon character for the sidebar nav item.
-    /// Using Unicode symbols as placeholder — will be replaced with proper icon font later.
-    pub fn icon(&self) -> &'static str {
+    /// SVG asset path for the sidebar nav icon (loaded via `AssetSource`).
+    pub fn icon_path(&self) -> &'static str {
         match self {
-            Page::Dashboard => "\u{25A3}",  // ◻
-            Page::Proxies => "\u{21C4}",    // ⇄
-            Page::Profiles => "\u{2630}",   // ☰
-            Page::Requests => "\u{21F5}",   // ⇵
-            Page::Connections => "\u{26D3}", // ⛓
-            Page::Resources => "\u{25A8}",  // ▨
-            Page::Logs => "\u{2261}",       // ≡
-            Page::Tools => "\u{2699}",      // ⚙
+            Page::Dashboard => "svg/dashboard.svg",
+            Page::Proxies => "svg/proxies.svg",
+            Page::Profiles => "svg/profiles.svg",
+            Page::Requests => "svg/requests.svg",
+            Page::Connections => "svg/connections.svg",
+            Page::Resources => "svg/resources.svg",
+            Page::Logs => "svg/logs.svg",
+            Page::Tools => "svg/tools.svg",
         }
     }
 

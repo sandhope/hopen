@@ -44,8 +44,13 @@ pub fn render_sidebar(
 
     for page in Page::ALL {
         let is_active = *page == current_page;
-        let icon = page.icon();
+        let icon_path = page.icon_path();
         let title = page.title();
+        let icon_color = if is_active {
+            rgb(theme.accent)
+        } else {
+            rgb(theme.text_secondary)
+        };
 
         nav_items = nav_items.child(
             div()
@@ -80,11 +85,10 @@ pub fn render_sidebar(
                     cx.notify();
                 }))
                 .child(
-                    div()
-                        .text_size(px(16.0))
-                        .w(px(22.0))
-                        .text_center()
-                        .child(icon),
+                    svg()
+                        .path(icon_path)
+                        .size(px(18.0))
+                        .text_color(icon_color),
                 )
                 .child(div().text_size(px(13.0)).child(title)),
         );
