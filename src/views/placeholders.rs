@@ -17,16 +17,6 @@ pub(super) fn profiles_view(theme: &Theme, strings: &I18nStrings) -> impl IntoEl
     )
 }
 
-// ─── Connections ───────────────────────────────────────────────
-
-pub(super) fn connections_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
-    placeholder_section(
-        strings.placeholder_connections_title,
-        strings.placeholder_connections_desc,
-        theme,
-    )
-}
-
 // ─── Resources ─────────────────────────────────────────────────
 
 pub(super) fn resources_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {

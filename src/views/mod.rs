@@ -11,6 +11,7 @@
 /// - `settings.rs`  — tools/settings page, language selector, theme toggle
 /// - `placeholders.rs` — stub views for unimplemented pages
 
+mod connections;
 mod dashboard;
 mod logs;
 mod placeholders;
@@ -45,6 +46,8 @@ pub fn render_page(
     requests_selected_index: Option<usize>,
     logs_search_text: &str,
     logs_filter_level: LogLevelFilter,
+    connections_search_text: &str,
+    connections_selected_index: Option<usize>,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -69,7 +72,7 @@ pub fn render_page(
             Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_search_text, proxies_expanded, search_input_entity).into_any_element(),
             Page::Profiles => placeholders::profiles_view(theme, &strings).into_any_element(),
             Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
-            Page::Connections => placeholders::connections_view(theme, &strings).into_any_element(),
+            Page::Connections => connections::connections_view(theme, cx, &strings, connections_search_text, connections_selected_index).into_any_element(),
             Page::Resources => placeholders::resources_view(theme, &strings).into_any_element(),
             Page::Logs => logs::logs_view(theme, cx, &strings, logs_search_text, logs_filter_level).into_any_element(),
             Page::Tools => unreachable!(),

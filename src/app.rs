@@ -36,6 +36,10 @@ pub struct AppView {
     pub logs_search_text: String,
     /// Active level filter for the Logs page.
     pub logs_filter_level: LogLevelFilter,
+    /// Search text for the Connections page filter.
+    pub connections_search_text: String,
+    /// Currently selected connection index in the Connections page.
+    pub connections_selected_index: Option<usize>,
     /// Current sidebar width (pixels), adjustable via drag.
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
@@ -57,6 +61,8 @@ impl AppView {
             requests_selected_index: None,
             logs_search_text: String::new(),
             logs_filter_level: LogLevelFilter::All,
+            connections_search_text: String::new(),
+            connections_selected_index: None,
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
         }
@@ -104,6 +110,8 @@ impl Render for AppView {
             self.requests_selected_index,
             &self.logs_search_text,
             self.logs_filter_level,
+            &self.connections_search_text,
+            self.connections_selected_index,
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 
