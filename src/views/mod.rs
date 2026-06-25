@@ -12,6 +12,7 @@
 /// - `placeholders.rs` — stub views for unimplemented pages
 
 mod dashboard;
+mod logs;
 mod placeholders;
 mod proxies;
 mod requests;
@@ -24,6 +25,7 @@ use gpui::*;
 use crate::i18n::I18nStrings;
 use crate::navigation::{Page, ToolsSubPage};
 use crate::theme::Theme;
+pub use logs::LogLevelFilter;
 use search_input::SearchInput;
 
 /// Route to the correct page view based on the current navigation state.
@@ -41,6 +43,8 @@ pub fn render_page(
     search_input_entity: &Entity<SearchInput>,
     requests_search_text: &str,
     requests_selected_index: Option<usize>,
+    logs_search_text: &str,
+    logs_filter_level: LogLevelFilter,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -67,7 +71,7 @@ pub fn render_page(
             Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
             Page::Connections => placeholders::connections_view(theme, &strings).into_any_element(),
             Page::Resources => placeholders::resources_view(theme, &strings).into_any_element(),
-            Page::Logs => placeholders::logs_view(theme, &strings).into_any_element(),
+            Page::Logs => logs::logs_view(theme, cx, &strings, logs_search_text, logs_filter_level).into_any_element(),
             Page::Tools => unreachable!(),
         };
         (page_header(title, theme).into_any_element(), content)

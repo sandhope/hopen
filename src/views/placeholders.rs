@@ -36,13 +36,3 @@ pub(super) fn resources_view(theme: &Theme, strings: &I18nStrings) -> impl IntoE
         theme,
     )
 }
-
-// ─── Logs ──────────────────────────────────────────────────────
-
-pub(super) fn logs_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
-    placeholder_section(
-        strings.placeholder_logs_title,
-        strings.placeholder_logs_desc,
-        theme,
-    )
-}

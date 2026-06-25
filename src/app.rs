@@ -11,6 +11,7 @@ use crate::current_theme;
 use crate::i18n::I18nManager;
 use crate::navigation::{Page, ToolsSubPage};
 use crate::views;
+use crate::views::LogLevelFilter;
 use crate::views::search_input::SearchInput;
 
 /// The root view that composes sidebar navigation with page content.
@@ -31,6 +32,10 @@ pub struct AppView {
     pub requests_search_text: String,
     /// Currently selected request index in the Requests page.
     pub requests_selected_index: Option<usize>,
+    /// Search text for the Logs page filter.
+    pub logs_search_text: String,
+    /// Active level filter for the Logs page.
+    pub logs_filter_level: LogLevelFilter,
     /// Current sidebar width (pixels), adjustable via drag.
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
@@ -50,6 +55,8 @@ impl AppView {
             proxies_search_focused: false,
             requests_search_text: String::new(),
             requests_selected_index: None,
+            logs_search_text: String::new(),
+            logs_filter_level: LogLevelFilter::All,
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
         }
@@ -95,6 +102,8 @@ impl Render for AppView {
             &self.search_input_entity,
             &self.requests_search_text,
             self.requests_selected_index,
+            &self.logs_search_text,
+            self.logs_filter_level,
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 
