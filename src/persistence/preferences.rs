@@ -15,6 +15,8 @@ pub struct PreferencesStore {
 const KEY_THEME: &str = "theme_mode";
 const KEY_ACCENT: &str = "accent_color";
 const KEY_LANG: &str = "language_id";
+const KEY_CLOSE_TO_TRAY: &str = "close_to_tray";
+const KEY_AUTO_LAUNCH: &str = "auto_launch";
 const KEY_OVERRIDE_DNS: &str = "override_dns";
 const KEY_VERSION: &str = "version";
 
@@ -54,6 +56,22 @@ impl PreferencesStore {
     }
 
     // ── misc ─────────────────────────────────────────────────────
+
+    pub fn close_to_tray(&self) -> Option<bool> {
+        self.cfg.get_bool(KEY_CLOSE_TO_TRAY)
+    }
+
+    pub fn set_close_to_tray(&self, v: bool) -> anyhow::Result<()> {
+        self.cfg.set_bool(KEY_CLOSE_TO_TRAY, v)
+    }
+
+    pub fn auto_launch(&self) -> Option<bool> {
+        self.cfg.get_bool(KEY_AUTO_LAUNCH)
+    }
+
+    pub fn set_auto_launch(&self, v: bool) -> anyhow::Result<()> {
+        self.cfg.set_bool(KEY_AUTO_LAUNCH, v)
+    }
 
     pub fn override_dns(&self) -> bool {
         self.cfg.get_bool(KEY_OVERRIDE_DNS).unwrap_or(false)

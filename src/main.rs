@@ -10,6 +10,7 @@ mod core;
 mod i18n;
 mod navigation;
 mod persistence;
+mod platform;
 mod state;
 mod theme;
 mod views;
@@ -86,6 +87,12 @@ pub struct AppState {
     pub public_ip: Option<String>,
     pub lan_ip: Option<String>,
     pub isp: Option<String>,
+    /// Whether to minimize to tray on close instead of exiting.
+    pub close_to_tray: bool,
+    /// Whether auto-start on login is enabled.
+    pub auto_launch: bool,
+    /// Whether the app is running with elevated privileges.
+    pub is_admin: bool,
 }
 
 impl Global for AppState {}
@@ -133,6 +140,12 @@ fn main() {
     let saved_theme = prefs.theme_mode().unwrap_or_default();
     let saved_accent = prefs.accent_color().unwrap_or_default();
     let saved_lang = prefs.language_id();
+    let saved_close_to_tray = prefs.close_to_tray().unwrap_or(true);
+    let saved_auto_launch = prefs.auto_launch().unwrap_or(false);
+    let is_admin = platform::admin::is_admin();
+
+    // ── Initialize system tray and event channel ───────────────────
+    let (_tray, tray_rx) = platform::tray::init();
 
     Application::new()
         .with_assets(Assets::new())
@@ -152,6 +165,9 @@ fn main() {
             public_ip: None,
             lan_ip: None,
             isp: None,
+            close_to_tray: saved_close_to_tray,
+            auto_launch: saved_auto_launch,
+            is_admin,
         });
 
         // Register the database for use by action handlers.
@@ -239,16 +255,64 @@ fn main() {
         });
 
         cx.on_action(|_: &ToggleSystemProxy, cx| {
+            let mut enabled = false;
             cx.update_global::<AppState, _>(|state, _cx| {
                 state.system_proxy = !state.system_proxy;
+                enabled = state.system_proxy;
             });
+
+            // Apply system proxy through platform APIs.
+            let result = if enabled {
+                platform::proxy::set_system_proxy(true, "127.0.0.1", 7890)
+            } else {
+                platform::proxy::set_system_proxy(false, "", 0)
+            };
+
+            if let Err(e) = result {
+                log::error!("Failed to set system proxy: {e}");
+                // Revert UI state on failure.
+                cx.update_global::<AppState, _>(|state, _cx| {
+                    state.system_proxy = !enabled;
+                });
+            }
+
             cx.refresh_windows();
         });
 
         cx.on_action(|_: &ToggleTunMode, cx| {
+            let admin = cx.global::<AppState>().is_admin;
+            if !admin {
+                log::warn!(
+                    "TUN mode requires admin privileges. {}",
+                    platform::admin::elevation_instructions()
+                );
+                return;
+            }
+
+            let mut enabled = false;
             cx.update_global::<AppState, _>(|state, _cx| {
                 state.tun_mode = !state.tun_mode;
+                enabled = state.tun_mode;
             });
+
+            // Toggle TUN through the Go core engine.
+            if let Some(mgr) = cx.try_global::<CoreManager>() {
+                if enabled {
+                    if let Err(e) = mgr.invoke(
+                        core::action::ActionMethod::StartTun,
+                        serde_json::json!({}),
+                    ) {
+                        log::error!("StartTun failed: {e}");
+                        cx.update_global::<AppState, _>(|s, _| s.tun_mode = false);
+                    }
+                } else {
+                    let _ = mgr.invoke(
+                        core::action::ActionMethod::StopTun,
+                        serde_json::json!({}),
+                    );
+                }
+            }
+
             cx.refresh_windows();
         });
 
@@ -257,6 +321,51 @@ fn main() {
                 state.outbound_mode = state.outbound_mode.next();
             });
             cx.refresh_windows();
+        });
+
+        // ── System tray event poller ──────────────────────────
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(300))
+                    .await;
+                while let Ok(event) = tray_rx.try_recv() {
+                    match event {
+                        platform::TrayEvent::ShowWindow => {
+                            let _ = cx.update(|cx| {
+                                show_all_windows(cx);
+                            });
+                        }
+                        platform::TrayEvent::ToggleProxy => {
+                            let _ = cx.update(|cx| {
+                                let mut enabled = false;
+                                cx.update_global::<AppState, _>(|s, _| {
+                                    s.system_proxy = !s.system_proxy;
+                                    enabled = s.system_proxy;
+                                });
+                                let result = if enabled {
+                                    platform::proxy::set_system_proxy(true, "127.0.0.1", 7890)
+                                } else {
+                                    platform::proxy::set_system_proxy(false, "", 0)
+                                };
+                                if let Err(e) = result {
+                                    log::error!("Tray proxy toggle failed: {e}");
+                                    cx.update_global::<AppState, _>(|s, _| {
+                                        s.system_proxy = !enabled;
+                                    });
+                                }
+                                cx.refresh_windows();
+                            });
+                        }
+                        platform::TrayEvent::Quit => {
+                            let _ = cx.update(|cx| {
+                                cx.quit();
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
         });
 
         // Open main window
@@ -358,7 +467,48 @@ pub(crate) fn save_language_id(cx: &mut App, id: &str) {
     }
 }
 
+/// Persist the close-to-tray preference.
+#[allow(dead_code)]
+pub(crate) fn save_close_to_tray(cx: &mut App) {
+    let v = cx.global::<AppState>().close_to_tray;
+    if let Some(db) = cx.try_global::<Database>() {
+        let prefs = persistence::preferences::PreferencesStore::new(&db);
+        let _ = prefs.set_close_to_tray(v);
+    }
+}
+
+/// Persist and apply the auto-launch preference.
+#[allow(dead_code)]
+pub(crate) fn save_auto_launch(cx: &mut App) {
+    let v = cx.global::<AppState>().auto_launch;
+    if let Some(db) = cx.try_global::<Database>() {
+        let prefs = persistence::preferences::PreferencesStore::new(&db);
+        let _ = prefs.set_auto_launch(v);
+    }
+
+    // Apply platform auto-start
+    let result = if v {
+        platform::autostart::enable_auto_start()
+    } else {
+        platform::autostart::disable_auto_start()
+    };
+    if let Err(e) = result {
+        log::error!("Failed to update auto-start: {e}");
+    }
+}
+
 // ─── Navigation ─────────────────────────────────────────────
+
+/// Restore all minimized windows (called from tray "Show Window").
+fn show_all_windows(cx: &mut App) {
+    let windows = cx.windows();
+    for window in windows {
+        let _ = window.update(cx, |_, window, _cx| {
+            window.activate_window();
+        });
+    }
+    cx.activate(true);
+}
 
 /// Helper: find the AppView entity in the window and update its current page.
 fn navigate_to(cx: &mut App, page: Page) {

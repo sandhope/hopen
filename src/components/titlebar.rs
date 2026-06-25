@@ -109,8 +109,16 @@ pub fn render_titlebar(
                     ICON_CLOSE,
                     icon_color,
                     theme,
-                    |_, window, _cx| {
-                        window.remove_window();
+                    |_, window, cx| {
+                        let close_to_tray = cx
+                            .try_global::<crate::AppState>()
+                            .map(|s| s.close_to_tray)
+                            .unwrap_or(false);
+                        if close_to_tray {
+                            window.minimize_window();
+                        } else {
+                            window.remove_window();
+                        }
                     },
                 )),
         )
