@@ -14,6 +14,7 @@
 mod dashboard;
 mod placeholders;
 mod proxies;
+mod requests;
 pub mod search_input;
 mod settings;
 mod shared;
@@ -38,6 +39,8 @@ pub fn render_page(
     proxies_search_text: &str,
     proxies_expanded: &std::collections::HashMap<String, bool>,
     search_input_entity: &Entity<SearchInput>,
+    requests_search_text: &str,
+    requests_selected_index: Option<usize>,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -61,7 +64,7 @@ pub fn render_page(
             Page::Dashboard => dashboard::dashboard_view(theme, cx, &strings).into_any_element(),
             Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_search_text, proxies_expanded, search_input_entity).into_any_element(),
             Page::Profiles => placeholders::profiles_view(theme, &strings).into_any_element(),
-            Page::Requests => placeholders::requests_view(theme, &strings).into_any_element(),
+            Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
             Page::Connections => placeholders::connections_view(theme, &strings).into_any_element(),
             Page::Resources => placeholders::resources_view(theme, &strings).into_any_element(),
             Page::Logs => placeholders::logs_view(theme, &strings).into_any_element(),

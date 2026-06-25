@@ -17,16 +17,6 @@ pub(super) fn profiles_view(theme: &Theme, strings: &I18nStrings) -> impl IntoEl
     )
 }
 
-// ─── Requests ──────────────────────────────────────────────────
-
-pub(super) fn requests_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
-    placeholder_section(
-        strings.placeholder_requests_title,
-        strings.placeholder_requests_desc,
-        theme,
-    )
-}
-
 // ─── Connections ───────────────────────────────────────────────
 
 pub(super) fn connections_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {

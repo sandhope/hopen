@@ -27,6 +27,10 @@ pub struct AppView {
     pub search_input_entity: Entity<SearchInput>,
     /// Whether we've already auto-focused the search input on this page visit.
     pub proxies_search_focused: bool,
+    /// Search text for the Requests page filter.
+    pub requests_search_text: String,
+    /// Currently selected request index in the Requests page.
+    pub requests_selected_index: Option<usize>,
     /// Current sidebar width (pixels), adjustable via drag.
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
@@ -44,6 +48,8 @@ impl AppView {
             proxies_expanded: std::collections::HashMap::new(),
             search_input_entity,
             proxies_search_focused: false,
+            requests_search_text: String::new(),
+            requests_selected_index: None,
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
         }
@@ -87,6 +93,8 @@ impl Render for AppView {
             &self.proxies_search_text,
             &self.proxies_expanded,
             &self.search_input_entity,
+            &self.requests_search_text,
+            self.requests_selected_index,
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 
