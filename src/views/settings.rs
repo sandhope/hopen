@@ -26,11 +26,11 @@ pub(super) fn tools_view(
         .px(px(24.0))
         .child(language_entry_item(theme, cx, strings))
         .child(theme_entry_item(theme, cx, strings))
-        .child(settings_item(strings.settings_basic_config, strings.settings_basic_config_subtitle, theme))
-        .child(settings_item(strings.settings_advanced_config, strings.settings_advanced_config_subtitle, theme))
-        .child(settings_item(strings.settings_hotkeys, strings.settings_hotkeys_subtitle, theme))
-        .child(settings_item(strings.settings_backup_restore, strings.settings_backup_restore_subtitle, theme))
-        .child(settings_item(strings.settings_about, strings.settings_about_subtitle, theme));
+        .child(settings_item("svg/basic-config.svg", strings.settings_basic_config, strings.settings_basic_config_subtitle, theme))
+        .child(settings_item("svg/advanced-config.svg", strings.settings_advanced_config, strings.settings_advanced_config_subtitle, theme))
+        .child(settings_item("svg/hotkeys.svg", strings.settings_hotkeys, strings.settings_hotkeys_subtitle, theme))
+        .child(settings_item("svg/backup-restore.svg", strings.settings_backup_restore, strings.settings_backup_restore_subtitle, theme))
+        .child(settings_item("svg/about.svg", strings.settings_about, strings.settings_about_subtitle, theme));
 
     settings_groups
 }
@@ -48,6 +48,7 @@ fn language_entry_item(
 
     settings_nav_row(
         "settings-language-entry",
+        "svg/language.svg",
         strings.settings_language,
         display,
         theme,
@@ -75,6 +76,7 @@ fn theme_entry_item(
 
     settings_nav_row(
         "settings-theme-entry",
+        "svg/theme.svg",
         strings.settings_theme,
         mode_label,
         theme,
@@ -85,9 +87,10 @@ fn theme_entry_item(
     )
 }
 
-/// Reusable settings row with title, subtitle, and chevron.
+/// Reusable settings row with icon, title, subtitle, and chevron.
 fn settings_nav_row(
     id: &'static str,
+    icon: &'static str,
     title: &str,
     subtitle: &str,
     theme: &Theme,
@@ -108,18 +111,27 @@ fn settings_nav_row(
         .hover(|s| s.bg(rgb(theme.surface)))
         .on_click(on_click)
         .child(
-            div().flex().flex_col().gap(px(2.0))
+            div().flex().items_center().gap(px(12.0))
                 .child(
-                    div()
-                        .text_size(px(14.0))
-                        .text_color(rgb(theme.text_primary))
-                        .child(title),
+                    svg()
+                        .path(icon)
+                        .size(px(18.0))
+                        .text_color(rgb(theme.text_secondary)),
                 )
                 .child(
-                    div()
-                        .text_size(px(12.0))
-                        .text_color(rgb(theme.text_secondary))
-                        .child(subtitle),
+                    div().flex().flex_col().gap(px(2.0))
+                        .child(
+                            div()
+                                .text_size(px(14.0))
+                                .text_color(rgb(theme.text_primary))
+                                .child(title),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(rgb(theme.text_secondary))
+                                .child(subtitle),
+                        ),
                 ),
         )
         .child(
@@ -146,11 +158,20 @@ pub(super) fn language_sub_page_body(
         .px(px(24.0))
         .child(
             div()
+                .flex()
+                .items_center()
+                .gap(px(6.0))
                 .px(px(16.0))
                 .py(px(8.0))
-                .text_size(px(12.0))
+                .text_size(px(13.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.text_secondary))
+                .child(
+                    svg()
+                        .path("svg/language.svg")
+                        .size(px(16.0))
+                        .text_color(rgb(theme.text_secondary)),
+                )
                 .child(strings.settings_language),
         )
         .child(lang_option_row(theme, "en-US", "English", &current_lang))
@@ -251,7 +272,7 @@ pub(super) fn theme_sub_page_body(
         .gap(px(12.0))
         .px(px(24.0))
         // ── Section: Theme Mode ───────────────────────────
-        .child(section_label(theme, strings.theme_mode_label))
+        .child(section_label(theme, "svg/theme.svg", strings.theme_mode_label))
         .child(theme_mode_row(
             theme,
             strings.theme_system,
@@ -272,19 +293,28 @@ pub(super) fn theme_sub_page_body(
         ))
         // ── Section: Accent Color ───────────────────────────
         .child(div().h(px(8.0)))
-        .child(section_label(theme, strings.accent_color_label))
+        .child(section_label(theme, "svg/palette.svg", strings.accent_color_label))
         .child(accent_color_grid(theme, current_accent))
 }
 
-/// Section header label (muted, bold, small).
-fn section_label(theme: &Theme, label: &str) -> impl IntoElement {
+/// Section header label with optional icon (muted, bold, small).
+fn section_label(theme: &Theme, icon: &'static str, label: &str) -> impl IntoElement {
     let label = label.to_string();
     div()
+        .flex()
+        .items_center()
+        .gap(px(6.0))
         .px(px(16.0))
-        .py(px(4.0))
-        .text_size(px(12.0))
+        .py(px(8.0))
+        .text_size(px(13.0))
         .font_weight(FontWeight::SEMIBOLD)
         .text_color(rgb(theme.text_secondary))
+        .child(
+            svg()
+                .path(icon)
+                .size(px(16.0))
+                .text_color(rgb(theme.text_secondary)),
+        )
         .child(label)
 }
 

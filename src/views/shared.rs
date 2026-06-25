@@ -37,8 +37,8 @@ pub(super) fn placeholder_section(title: &str, description: &str, theme: &Theme)
         )
 }
 
-/// A static settings list item with title and subtitle.
-pub(super) fn settings_item(title: &str, subtitle: &str, theme: &Theme) -> impl IntoElement {
+/// A static settings list item with icon, title, and subtitle.
+pub(super) fn settings_item(icon: &'static str, title: &str, subtitle: &str, theme: &Theme) -> impl IntoElement {
     let title = title.to_string();
     let subtitle = subtitle.to_string();
     div()
@@ -51,18 +51,28 @@ pub(super) fn settings_item(title: &str, subtitle: &str, theme: &Theme) -> impl 
         .cursor_pointer()
         .hover(|s| s.bg(rgb(theme.surface)))
         .child(
-            div().flex().flex_col().gap(px(2.0)).child(
-                div()
-                    .text_size(px(14.0))
-                    .text_color(rgb(theme.text_primary))
-                    .child(title),
-            )
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .text_color(rgb(theme.text_secondary))
-                    .child(subtitle),
-            ),
+            div().flex().items_center().gap(px(12.0))
+                .child(
+                    svg()
+                        .path(icon)
+                        .size(px(18.0))
+                        .text_color(rgb(theme.text_secondary)),
+                )
+                .child(
+                    div().flex().flex_col().gap(px(2.0))
+                        .child(
+                            div()
+                                .text_size(px(14.0))
+                                .text_color(rgb(theme.text_primary))
+                                .child(title),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(rgb(theme.text_secondary))
+                                .child(subtitle),
+                        ),
+                ),
         )
         .child(
             div()
