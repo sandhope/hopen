@@ -18,6 +18,7 @@ mod placeholders;
 pub mod profiles;
 mod proxies;
 mod requests;
+pub mod resources;
 pub mod search_input;
 mod settings;
 mod shared;
@@ -55,6 +56,7 @@ pub fn render_page(
     profiles_add_url: &str,
     profiles_detail_tab: profiles::DetailTab,
     profiles_overwrite_sub_tab: profiles::OverwriteSubTab,
+    resources_state: &resources::ResourcesState,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -80,7 +82,7 @@ pub fn render_page(
             Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_search_text, profiles_selected_index, profiles_show_add, profiles_add_url, profiles_detail_tab, profiles_overwrite_sub_tab).into_any_element(),
             Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
             Page::Connections => connections::connections_view(theme, cx, &strings, connections_search_text, connections_selected_index).into_any_element(),
-            Page::Resources => placeholders::resources_view(theme, &strings).into_any_element(),
+            Page::Resources => resources::resources_view(theme, cx, &strings, resources_state).into_any_element(),
             Page::Logs => logs::logs_view(theme, cx, &strings, logs_search_text, logs_filter_level).into_any_element(),
             Page::Tools => unreachable!(),
         };

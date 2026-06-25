@@ -5,6 +5,7 @@ use gpui::*;
 use crate::theme::Theme;
 
 /// A reusable placeholder section with title and description.
+#[allow(dead_code)]
 pub(super) fn placeholder_section(title: &str, description: &str, theme: &Theme) -> impl IntoElement {
     let title = title.to_string();
     let description = description.to_string();
