@@ -7,16 +7,6 @@ use crate::theme::Theme;
 
 use super::shared::placeholder_section;
 
-// ─── Proxies ───────────────────────────────────────────────────
-
-pub(super) fn proxies_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
-    placeholder_section(
-        strings.placeholder_proxies_title,
-        strings.placeholder_proxies_desc,
-        theme,
-    )
-}
-
 // ─── Profiles ──────────────────────────────────────────────────
 
 pub(super) fn profiles_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {

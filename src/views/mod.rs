@@ -7,11 +7,14 @@
 /// - `mod.rs`       — routing dispatch + page header helpers
 /// - `shared.rs`    — reusable widgets (placeholder_section, settings_item, back_button)
 /// - `dashboard.rs` — dashboard page with all sub-cards
+/// - `proxies.rs`   — proxy groups, node cards, delay test, search, providers
 /// - `settings.rs`  — tools/settings page, language selector, theme toggle
 /// - `placeholders.rs` — stub views for unimplemented pages
 
 mod dashboard;
 mod placeholders;
+mod proxies;
+pub mod search_input;
 mod settings;
 mod shared;
 
@@ -20,6 +23,7 @@ use gpui::*;
 use crate::i18n::I18nStrings;
 use crate::navigation::{Page, ToolsSubPage};
 use crate::theme::Theme;
+use search_input::SearchInput;
 
 /// Route to the correct page view based on the current navigation state.
 ///
@@ -31,6 +35,9 @@ pub fn render_page(
     tools_sub_page: Option<ToolsSubPage>,
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
+    proxies_search_text: &str,
+    proxies_expanded: &std::collections::HashMap<String, bool>,
+    search_input_entity: &Entity<SearchInput>,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -52,7 +59,7 @@ pub fn render_page(
         let title = strings.page_title(page);
         let content: AnyElement = match page {
             Page::Dashboard => dashboard::dashboard_view(theme, cx, &strings).into_any_element(),
-            Page::Proxies => placeholders::proxies_view(theme, &strings).into_any_element(),
+            Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_search_text, proxies_expanded, search_input_entity).into_any_element(),
             Page::Profiles => placeholders::profiles_view(theme, &strings).into_any_element(),
             Page::Requests => placeholders::requests_view(theme, &strings).into_any_element(),
             Page::Connections => placeholders::connections_view(theme, &strings).into_any_element(),

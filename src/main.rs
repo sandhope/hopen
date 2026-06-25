@@ -222,11 +222,8 @@ fn main() {
                 window_min_size: Some(size(px(800.0), px(500.0))),
                 ..Default::default()
             },
-            |_, cx| {
-                cx.new(|_cx| AppView {
-                    current_page: Page::Dashboard,
-                    tools_sub_page: None,
-                })
+            |window, cx| {
+                cx.new(|cx| AppView::new(window, cx))
             },
         )
         .unwrap();
