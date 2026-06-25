@@ -14,6 +14,7 @@ use crate::views;
 use crate::views::LogLevelFilter;
 use crate::views::resources::ResourcesState;
 use crate::views::search_input::SearchInput;
+use crate::views::settings::SettingsData;
 
 /// The root view that composes sidebar navigation with page content.
 pub struct AppView {
@@ -55,6 +56,8 @@ pub struct AppView {
     pub profiles_overwrite_sub_tab: Option<crate::views::profiles::OverwriteSubTab>,
     /// Resources page state (GeoIP, GeoSite, MMDB, ASN management).
     pub resources_state: ResourcesState,
+    /// Settings page state (all editable settings values).
+    pub settings_data: SettingsData,
     /// Current sidebar width (pixels), adjustable via drag.
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
@@ -85,6 +88,7 @@ impl AppView {
             profiles_detail_tab: None,
             profiles_overwrite_sub_tab: None,
             resources_state: ResourcesState::new(),
+            settings_data: SettingsData::default(),
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
         }
@@ -141,6 +145,7 @@ impl Render for AppView {
             self.profiles_detail_tab.unwrap_or(views::profiles::DetailTab::Info),
             self.profiles_overwrite_sub_tab.unwrap_or(views::profiles::OverwriteSubTab::Standard),
             &self.resources_state,
+            &self.settings_data,
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 

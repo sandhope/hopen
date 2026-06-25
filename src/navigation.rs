@@ -22,6 +22,41 @@ pub enum Page {
 pub enum ToolsSubPage {
     Language,
     Theme,
+    BasicConfig,
+    NetworkConfig,
+    DnsConfig,
+    RulesConfig,
+    ScriptsConfig,
+    AdvancedConfig,
+    OnDemand,
+    Hotkeys,
+    BackupRestore,
+    Disclaimer,
+    About,
+}
+
+// Note: Sub-page titles are resolved via I18nStrings::tools_sub_page_title().
+// The match arms below are kept for potential future non-i18n use.
+#[allow(dead_code)]
+impl ToolsSubPage {
+    /// Display title for the sub-page header (English fallback).
+    pub fn title(&self) -> &'static str {
+        match self {
+            ToolsSubPage::Language => "Language",
+            ToolsSubPage::Theme => "Theme",
+            ToolsSubPage::BasicConfig => "Basic Config",
+            ToolsSubPage::NetworkConfig => "Network Config",
+            ToolsSubPage::DnsConfig => "DNS Config",
+            ToolsSubPage::RulesConfig => "Rules Config",
+            ToolsSubPage::ScriptsConfig => "Scripts Config",
+            ToolsSubPage::AdvancedConfig => "Advanced Config",
+            ToolsSubPage::OnDemand => "On-Demand",
+            ToolsSubPage::Hotkeys => "Hotkeys",
+            ToolsSubPage::BackupRestore => "Backup & Restore",
+            ToolsSubPage::Disclaimer => "Disclaimer",
+            ToolsSubPage::About => "About",
+        }
+    }
 }
 
 impl Page {

@@ -39,6 +39,7 @@ pub(super) fn placeholder_section(title: &str, description: &str, theme: &Theme)
 }
 
 /// A static settings list item with icon, title, and subtitle.
+#[allow(dead_code)]
 pub(super) fn settings_item(icon: &'static str, title: &str, subtitle: &str, theme: &Theme) -> impl IntoElement {
     let title = title.to_string();
     let subtitle = subtitle.to_string();

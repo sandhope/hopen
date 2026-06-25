@@ -20,7 +20,7 @@ mod proxies;
 mod requests;
 pub mod resources;
 pub mod search_input;
-mod settings;
+pub mod settings;
 mod shared;
 
 use gpui::*;
@@ -57,6 +57,7 @@ pub fn render_page(
     profiles_detail_tab: profiles::DetailTab,
     profiles_overwrite_sub_tab: profiles::OverwriteSubTab,
     resources_state: &resources::ResourcesState,
+    settings_data: &settings::SettingsData,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -65,7 +66,7 @@ pub fn render_page(
     let (header_elem, content_elem): (AnyElement, AnyElement) = if page == Page::Tools {
         if let Some(sub) = tools_sub_page {
             let header = render_sub_page_header(sub, theme, cx, &strings).into_any_element();
-            let body = render_sub_page_body(sub, theme, cx, &strings);
+            let body = render_sub_page_body(sub, theme, cx, &strings, settings_data);
             (header, body)
         } else {
             let title = strings.page_title(page);
@@ -122,10 +123,7 @@ fn render_sub_page_header(
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
 ) -> impl IntoElement {
-    let title = match sub {
-        ToolsSubPage::Language => strings.page_title_language,
-        ToolsSubPage::Theme => strings.page_title_theme,
-    };
+    let title = strings.tools_sub_page_title(sub);
     div()
         .flex()
         .items_center()
@@ -149,9 +147,22 @@ fn render_sub_page_body(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
+    settings_data: &settings::SettingsData,
 ) -> AnyElement {
+    let data = settings_data.clone();
     match sub {
         ToolsSubPage::Language => settings::language_sub_page_body(theme, cx, strings).into_any_element(),
         ToolsSubPage::Theme => settings::theme_sub_page_body(theme, cx, strings).into_any_element(),
+        ToolsSubPage::BasicConfig => settings::basic_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::NetworkConfig => settings::network_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::DnsConfig => settings::dns_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::RulesConfig => settings::rules_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::ScriptsConfig => settings::scripts_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::AdvancedConfig => settings::advanced_config_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::OnDemand => settings::on_demand_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::Hotkeys => settings::hotkeys_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::BackupRestore => settings::backup_restore_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::Disclaimer => settings::disclaimer_sub_page_body(theme, data, cx, strings).into_any_element(),
+        ToolsSubPage::About => settings::about_sub_page_body(theme, data, cx, strings).into_any_element(),
     }
 }
