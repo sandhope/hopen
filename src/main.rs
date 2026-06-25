@@ -9,6 +9,7 @@ mod components;
 mod core;
 mod i18n;
 mod navigation;
+mod persistence;
 mod state;
 mod theme;
 mod views;
@@ -20,6 +21,7 @@ use assets::Assets;
 use core::manager::CoreManager;
 use i18n::I18nManager;
 use navigation::Page;
+use persistence::Database;
 use state::config::ConfigState;
 use state::connection::ConnectionState;
 use state::log::LogState;
@@ -122,16 +124,26 @@ actions!(
 // ─── Main ──────────────────────────────────────────────────────
 
 fn main() {
+    // ── Open embedded database early ───────────────────────────────
+    let data_dir = config_dir();
+    let db = Database::open(data_dir.clone()).expect("failed to open database");
+
+    // Load saved preferences so AppState starts with persisted values.
+    let prefs = persistence::preferences::PreferencesStore::new(&db);
+    let saved_theme = prefs.theme_mode().unwrap_or_default();
+    let saved_accent = prefs.accent_color().unwrap_or_default();
+    let saved_lang = prefs.language_id();
+
     Application::new()
         .with_assets(Assets::new())
-        .run(|cx: &mut App| {
+        .run(move |cx: &mut App| {
         // Initialize global state
         cx.set_global(AppState {
             core_running: false,
             system_proxy: false,
             tun_mode: false,
-            theme_mode: load_theme_mode(),
-            accent_color: load_accent_color(),
+            theme_mode: parse_theme_mode(&saved_theme),
+            accent_color: parse_accent_color(&saved_accent),
             outbound_mode: OutboundMode::default(),
             upload_speed: 0,
             download_speed: 0,
@@ -142,6 +154,9 @@ fn main() {
             isp: None,
         });
 
+        // Register the database for use by action handlers.
+        cx.set_global(db);
+
         // Initialize core engine manager (IPC + Go process management)
         cx.set_global(CoreManager::new());
 
@@ -151,9 +166,8 @@ fn main() {
         cx.set_global(ConnectionState::default());
         cx.set_global(LogState::default());
 
-        // Initialize i18n — auto-detect system language
-        let lang_id = i18n::detect_system_language_id();
-        let lang_id = load_language_id().unwrap_or(lang_id);
+        // Initialize i18n — auto-detect system language, prefer persisted
+        let lang_id = saved_lang.unwrap_or_else(|| i18n::detect_system_language_id());
         I18nManager::init_with_language_id(cx, &lang_id);
 
         // Bind keyboard shortcuts
@@ -190,8 +204,8 @@ fn main() {
         cx.on_action(|_: &ToggleTheme, cx| {
             cx.update_global::<AppState, _>(|state, _cx| {
                 state.theme_mode = state.theme_mode.toggle();
-                save_theme_mode(state.theme_mode);
             });
+            save_theme_mode(cx);
             cx.refresh_windows();
         });
 
@@ -272,7 +286,7 @@ fn main() {
 
 // ─── Config Persistence ──────────────────────────────────────
 
-/// Returns the Hopen config directory.
+/// Returns the Hopen data directory.
 /// Windows → `%APPDATA%/hopen`, Unix → `$HOME/.config/hopen`.
 pub(crate) fn config_dir() -> std::path::PathBuf {
     #[cfg(windows)]
@@ -293,66 +307,55 @@ pub(crate) fn config_dir() -> std::path::PathBuf {
     }
 }
 
-/// Load the saved theme mode from disk, defaulting to Light.
-pub(crate) fn load_theme_mode() -> ThemeMode {
-    let path = config_dir().join("theme");
-    std::fs::read_to_string(&path)
-        .ok()
-        .map(|s| s.trim().to_lowercase())
-        .and_then(|s| match s.as_str() {
-            "dark" => Some(ThemeMode::Dark),
-            "light" => Some(ThemeMode::Light),
-            "system" => Some(ThemeMode::System),
-            _ => None,
-        })
-        .unwrap_or_default()
+/// Parse a theme mode string from sled.
+fn parse_theme_mode(s: &str) -> ThemeMode {
+    match s.trim().to_lowercase().as_str() {
+        "dark" => ThemeMode::Dark,
+        "light" => ThemeMode::Light,
+        "system" => ThemeMode::System,
+        _ => ThemeMode::default(),
+    }
 }
 
-/// Persist the current theme mode to disk so it survives restarts.
-pub(crate) fn save_theme_mode(mode: ThemeMode) {
-    let dir = config_dir();
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::write(dir.join("theme"), mode.label());
+/// Parse an accent colour string from sled.
+fn parse_accent_color(s: &str) -> AccentColor {
+    match s.trim().to_lowercase().as_str() {
+        "blue" => AccentColor::Blue,
+        "purple" => AccentColor::Purple,
+        "pink" => AccentColor::Pink,
+        "red" => AccentColor::Red,
+        "orange" => AccentColor::Orange,
+        "green" => AccentColor::Green,
+        "yellow" => AccentColor::Yellow,
+        "teal" => AccentColor::Teal,
+        _ => AccentColor::default(),
+    }
 }
 
-/// Load the saved language id from disk.
-pub(crate) fn load_language_id() -> Option<String> {
-    let path = config_dir().join("lang");
-    std::fs::read_to_string(&path).ok().map(|s| s.trim().to_owned())
+/// Persist the current theme mode through the Database global.
+pub(crate) fn save_theme_mode(cx: &mut App) {
+    let mode = cx.global::<AppState>().theme_mode;
+    if let Some(db) = cx.try_global::<Database>() {
+        let prefs = persistence::preferences::PreferencesStore::new(&db);
+        let _ = prefs.set_theme_mode(mode.label());
+    }
 }
 
-/// Persist the current language id so it survives restarts.
-pub(crate) fn save_language_id(id: &str) {
-    let dir = config_dir();
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::write(dir.join("lang"), id);
+/// Persist the current accent colour through the Database global.
+pub(crate) fn save_accent_color(cx: &mut App) {
+    let color = cx.global::<AppState>().accent_color;
+    if let Some(db) = cx.try_global::<Database>() {
+        let prefs = persistence::preferences::PreferencesStore::new(&db);
+        let _ = prefs.set_accent_color(color.label());
+    }
 }
 
-/// Load the saved accent colour from disk, defaulting to Teal.
-pub(crate) fn load_accent_color() -> AccentColor {
-    let path = config_dir().join("accent");
-    std::fs::read_to_string(&path)
-        .ok()
-        .map(|s| s.trim().to_lowercase())
-        .and_then(|s| match s.as_str() {
-            "teal" => Some(AccentColor::Teal),
-            "blue" => Some(AccentColor::Blue),
-            "purple" => Some(AccentColor::Purple),
-            "pink" => Some(AccentColor::Pink),
-            "red" => Some(AccentColor::Red),
-            "orange" => Some(AccentColor::Orange),
-            "green" => Some(AccentColor::Green),
-            "yellow" => Some(AccentColor::Yellow),
-            _ => None,
-        })
-        .unwrap_or_default()
-}
-
-/// Persist the current accent colour to disk.
-pub(crate) fn save_accent_color(color: AccentColor) {
-    let dir = config_dir();
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::write(dir.join("accent"), color.label());
+/// Persist the current language id through the Database global.
+pub(crate) fn save_language_id(cx: &mut App, id: &str) {
+    if let Some(db) = cx.try_global::<Database>() {
+        let prefs = persistence::preferences::PreferencesStore::new(&db);
+        let _ = prefs.set_language_id(id);
+    }
 }
 
 // ─── Navigation ─────────────────────────────────────────────

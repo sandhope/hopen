@@ -16,7 +16,7 @@ use crate::i18n::{I18nStrings, language_display_name};
 use crate::navigation::ToolsSubPage;
 use crate::theme::{AccentColor, Theme, ThemeMode};
 use crate::{
-    save_theme_mode, save_language_id, save_accent_color, AppState,
+    AppState,
 };
 
 // ─── Settings State ──────────────────────────────────────
@@ -327,7 +327,7 @@ fn lang_option_row(
         .cursor_pointer().hover(|s| s.bg(rgb(theme.surface)))
         .on_click(move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
             crate::i18n::I18nManager::init_with_language_id(cx, &lang_id_owned);
-            save_language_id(&lang_id_owned);
+            crate::save_language_id(cx, &lang_id_owned);
             cx.refresh_windows();
         })
         .child(radio_dot(theme, is_active))
@@ -368,7 +368,8 @@ fn theme_mode_row(theme: &Theme, label: &str, is_active: bool, mode: ThemeMode) 
         .flex().items_center().gap(px(10.0)).px(px(16.0)).py(px(12.0)).rounded(px(6.0))
         .cursor_pointer().hover(|s| s.bg(rgb(theme.surface)))
         .on_click(move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
-            cx.update_global::<AppState, _>(|state, _cx| { state.theme_mode = mode; save_theme_mode(mode); });
+            cx.update_global::<AppState, _>(|state, _cx| { state.theme_mode = mode; });
+            crate::save_theme_mode(cx);
             cx.refresh_windows();
         })
         .child(radio_dot(theme, is_active))
@@ -391,7 +392,8 @@ fn accent_swatch(theme: &Theme, accent: AccentColor, is_active: bool) -> impl In
         .w(px(40.0)).h(px(40.0)).flex().items_center().justify_center().rounded(px(8.0))
         .cursor_pointer().hover(|s| s.bg(rgb(theme.surface)))
         .on_click(move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
-            cx.update_global::<AppState, _>(|state, _cx| { state.accent_color = accent; save_accent_color(accent); });
+            cx.update_global::<AppState, _>(|state, _cx| { state.accent_color = accent; });
+            crate::save_accent_color(cx);
             cx.refresh_windows();
         })
         .child(div().w(px(size)).h(px(size)).rounded(px(size / 2.0)).bg(rgb(swatch_color)).border_2().border_color(border_color))
