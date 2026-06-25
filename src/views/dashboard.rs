@@ -16,6 +16,7 @@
 
 use gpui::*;
 
+use crate::components::charts::{self, DonutChartData};
 use crate::i18n::I18nStrings;
 use crate::theme::{Theme, CARD_RADIUS};
 use crate::{
@@ -174,37 +175,13 @@ fn network_speed_card(
                                 .text_color(speed_color).child(down_str),
                         ),
                 )
-                // Mini speed bar visual
-                .child(speed_bars(theme, upload_speed, download_speed, core_running)),
+                // Wave visual for real-time speed indication
+                .child(
+                    div().flex().flex_col().gap(px(4.0)).flex_1().justify_end()
+                        .child(charts::wave_view(theme, theme.status_info, 12.0))
+                        .child(charts::wave_view(theme, theme.status_success, 8.0)),
+                ),
         )
-}
-
-/// Simple bar visualizer for speed (placeholder mini-graph).
-fn speed_bars(
-    theme: &Theme,
-    _up: u64,
-    _down: u64,
-    core_running: bool,
-) -> impl IntoElement {
-    let bar_color = if core_running {
-        rgb(theme.accent)
-    } else {
-        rgb(theme.border)
-    };
-
-    div().flex().gap(px(3.0)).flex_1().justify_end().items_end().children(
-        // Draw 8 bars of varying heights for visual effect
-        [0.6, 0.8, 0.5, 1.0, 0.7, 0.9, 0.4, 0.75]
-            .iter()
-            .map(move |&h| {
-                div()
-                    .w(px(4.0))
-                    .h(px(8.0 + h * 24.0))
-                    .rounded(px(2.0))
-                    .bg(bar_color)
-                    .opacity(h as f32)
-            }),
-    )
 }
 
 // ─── Proxy Control Card (Left Column Top) ─────────────────
@@ -348,24 +325,29 @@ fn lan_ip_card(theme: &Theme, lan_ip: Option<&str>, strings: &I18nStrings) -> im
 
 // ─── Traffic Stats Card (Right Column Top) ─────────────────
 
-/// Card with ring chart and upload/download totals.
+/// Card with donut chart and upload/download totals.
 fn traffic_stats_card(
     theme: &Theme,
     upload_total: u64,
     download_total: u64,
     strings: &I18nStrings,
 ) -> impl IntoElement {
-    let up_str = format_bytes(upload_total);
-    let down_str = format_bytes(download_total);
-    let total = upload_total + download_total;
-    let up_pct = if total > 0 {
-        (upload_total as f64 / total as f64 * 100.0) as u32
-    } else {
-        50
-    };
     let title = strings.dashboard_traffic_usage;
     let upload_label = strings.dashboard_upload;
     let download_label = strings.dashboard_download;
+
+    let chart_data = vec![
+        DonutChartData {
+            value: upload_total as f32,
+            color: theme.status_info,
+            label: upload_label.to_string(),
+        },
+        DonutChartData {
+            value: download_total as f32,
+            color: theme.status_success,
+            label: download_label.to_string(),
+        },
+    ];
 
     div()
         .flex()
@@ -383,52 +365,7 @@ fn traffic_stats_card(
                 .text_color(rgb(theme.text_primary))
                 .child(title),
         )
-        .child(
-            div().flex().gap(px(20.0)).items_center()
-                // Ring chart visual
-                .child(ring_chart(theme, up_pct))
-                // Stats labels
-                .child(
-                    div().flex().flex_col().gap(px(10.0)).flex_1()
-                        .child(stat_row(upload_label, &up_str, theme.status_info, theme))
-                        .child(stat_row(download_label, &down_str, theme.status_success, theme)),
-                ),
-        )
-}
-
-/// A simple ring/donut chart visual using divs.
-fn ring_chart(theme: &Theme, _up_pct: u32) -> impl IntoElement {
-    let ring_border = rgb(theme.border_light);
-
-    div()
-        .flex()
-        .items_center()
-        .justify_center()
-        .w(px(72.0))
-        .h(px(72.0))
-        .rounded(px(36.0))
-        .border_2()
-        .border_color(ring_border)
-        .bg(rgb(theme.surface_variant))
-        .child(
-            div()
-                .text_size(px(11.0))
-                .text_color(rgb(theme.text_secondary))
-                .child(format!("{:.0}%", _up_pct)),
-        )
-}
-
-fn stat_row(label: &str, value: &str, color: u32, _theme: &Theme) -> impl IntoElement {
-    let label = label.to_string();
-    let value = value.to_string();
-    div().flex().flex_col().gap(px(2.0))
-        .child(
-            div().text_size(px(11.0)).text_color(rgb(_theme.text_secondary)).child(label),
-        )
-        .child(
-            div().text_size(px(15.0)).font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(color)).child(value),
-        )
+        .child(charts::donut_chart(&chart_data, theme))
 }
 
 // ─── Network Detection Card (Right Column Bottom) ─────────
@@ -590,19 +527,4 @@ fn format_speed(bytes_per_sec: u64) -> String {
         unit_idx += 1;
     }
     format!("{:.1} {}", size, units[unit_idx])
-}
-
-/// Format bytes to human readable string.
-fn format_bytes(bytes: u64) -> String {
-    if bytes == 0 {
-        return "0 B".into();
-    }
-    let units = ["B", "KB", "MB", "GB", "TB"];
-    let mut size = bytes as f64;
-    let mut unit_idx = 0;
-    while size >= 1024.0 && unit_idx < units.len() - 1 {
-        size /= 1024.0;
-        unit_idx += 1;
-    }
-    format!("{:.2} {}", size, units[unit_idx])
 }
