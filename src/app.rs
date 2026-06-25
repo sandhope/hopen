@@ -27,6 +27,10 @@ pub struct AppView {
     pub search_input_entity: Entity<SearchInput>,
     /// Whether we've already auto-focused the search input on this page visit.
     pub proxies_search_focused: bool,
+    /// Current sidebar width (pixels), adjustable via drag.
+    pub sidebar_width: f32,
+    /// Whether the user is currently dragging the sidebar resize handle.
+    sidebar_resizing: bool,
 }
 
 impl AppView {
@@ -40,6 +44,8 @@ impl AppView {
             proxies_expanded: std::collections::HashMap::new(),
             search_input_entity,
             proxies_search_focused: false,
+            sidebar_width: crate::theme::SIDEBAR_WIDTH,
+            sidebar_resizing: false,
         }
     }
 }
@@ -65,8 +71,14 @@ impl Render for AppView {
             self.proxies_search_focused = false;
         }
 
+        // Capture entity before mutable cx borrows (for mouse event closures).
+        let entity = cx.entity();
+
         // Build sidebar first (consumes cx borrow), then content.
-        let sidebar = sidebar::render_sidebar(self.current_page, cx, &theme, &strings);
+        let sidebar_width = self.sidebar_width;
+        let sidebar = sidebar::render_sidebar(
+            self.current_page, cx, &theme, &strings, sidebar_width,
+        );
         let content = views::render_page(
             self.current_page,
             self.tools_sub_page,
@@ -86,14 +98,57 @@ impl Render for AppView {
             .text_color(rgb(theme.text_primary))
             // Custom titlebar
             .child(titlebar)
-            // Body: sidebar + content — offset by titlebar height
+            // Body: sidebar + resize-handle + content — offset by titlebar height.
+            //
+            // Resize logic uses raw mouse events (gpui 0.2.2 lacks `on_drag`
+            // on `Div`):
+            //   1. on_any_mouse_down on handle → set sidebar_resizing = true
+            //   2. on_mouse_move on body → if resizing, update sidebar_width
+            //      from mouse x coordinate
+            //   3. capture_any_mouse_up on body → set sidebar_resizing = false
             .child(
                 div()
                     .flex()
                     .flex_1()
                     .pt(px(titlebar::TITLEBAR_HEIGHT))
                     .overflow_hidden()
+                    .on_mouse_move({
+                        let entity = entity.clone();
+                        move |event: &MouseMoveEvent, _window, app| {
+                            entity.update(app, |this, _| {
+                                if this.sidebar_resizing {
+                                    let current_x: f32 = event.position.x.into();
+                                    this.sidebar_width =
+                                        current_x.clamp(160.0, 360.0);
+                                }
+                            });
+                        }
+                    })
+                    .capture_any_mouse_up({
+                        let entity = entity.clone();
+                        move |_event: &MouseUpEvent, _window, app| {
+                            entity.update(app, |this, _| {
+                                this.sidebar_resizing = false;
+                            });
+                        }
+                    })
                     .child(sidebar)
+                    .child(
+                        // Resize handle: drag left/right to adjust sidebar width.
+                        div()
+                            .w(px(4.0))
+                            .h_full()
+                            .cursor(CursorStyle::ResizeLeftRight)
+                            .hover(|s| s.bg(rgba(0x00000010)))
+                            .on_any_mouse_down({
+                                let entity = entity.clone();
+                                move |_event: &MouseDownEvent, _window, app| {
+                                    entity.update(app, |this, _| {
+                                        this.sidebar_resizing = true;
+                                    });
+                                }
+                            }),
+                    )
                     .child(div().flex().flex_col().flex_1().overflow_hidden().child(content)),
             )
     }

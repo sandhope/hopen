@@ -17,11 +17,13 @@ use crate::theme::Theme;
 /// - `cx`: listener context from `AppView`, used to attach click handlers
 /// - `theme`: the active colour palette
 /// - `strings`: localised UI strings
+/// - `width`: current sidebar width (pixels), adjustable via drag on the resize handle
 pub fn render_sidebar(
     current_page: Page,
     cx: &mut Context<crate::app::AppView>,
     theme: &Theme,
     strings: &I18nStrings,
+    width: f32,
 ) -> impl IntoElement + use<> {
     // ── Logo area ──────────────────────────────────────────────
     let logo = div()
@@ -106,7 +108,7 @@ pub fn render_sidebar(
     div()
         .flex()
         .flex_col()
-        .w(px(crate::theme::SIDEBAR_WIDTH))
+        .w(px(width))
         .h_full()
         .bg(rgb(theme.sidebar_bg))
         .border_r_1()
