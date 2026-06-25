@@ -40,6 +40,18 @@ pub struct AppView {
     pub connections_search_text: String,
     /// Currently selected connection index in the Connections page.
     pub connections_selected_index: Option<usize>,
+    /// Search text for the Profiles page filter.
+    pub profiles_search_text: String,
+    /// Currently selected profile index in the Profiles page.
+    pub profiles_selected_index: Option<usize>,
+    /// Whether the Add Subscription panel is shown.
+    pub profiles_show_add: bool,
+    /// URL text typed in the Add Subscription panel.
+    pub profiles_add_url: String,
+    /// Active tab in the profiles detail panel.
+    pub profiles_detail_tab: Option<crate::views::profiles::DetailTab>,
+    /// Active sub-tab in the profiles overwrite section.
+    pub profiles_overwrite_sub_tab: Option<crate::views::profiles::OverwriteSubTab>,
     /// Current sidebar width (pixels), adjustable via drag.
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
@@ -63,6 +75,12 @@ impl AppView {
             logs_filter_level: LogLevelFilter::All,
             connections_search_text: String::new(),
             connections_selected_index: None,
+            profiles_search_text: String::new(),
+            profiles_selected_index: None,
+            profiles_show_add: false,
+            profiles_add_url: String::new(),
+            profiles_detail_tab: None,
+            profiles_overwrite_sub_tab: None,
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
         }
@@ -112,6 +130,12 @@ impl Render for AppView {
             self.logs_filter_level,
             &self.connections_search_text,
             self.connections_selected_index,
+            &self.profiles_search_text,
+            self.profiles_selected_index,
+            self.profiles_show_add,
+            &self.profiles_add_url,
+            self.profiles_detail_tab.unwrap_or(views::profiles::DetailTab::Info),
+            self.profiles_overwrite_sub_tab.unwrap_or(views::profiles::OverwriteSubTab::Standard),
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 

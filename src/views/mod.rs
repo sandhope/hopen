@@ -15,6 +15,7 @@ mod connections;
 mod dashboard;
 mod logs;
 mod placeholders;
+pub mod profiles;
 mod proxies;
 mod requests;
 pub mod search_input;
@@ -48,6 +49,12 @@ pub fn render_page(
     logs_filter_level: LogLevelFilter,
     connections_search_text: &str,
     connections_selected_index: Option<usize>,
+    profiles_search_text: &str,
+    profiles_selected_index: Option<usize>,
+    profiles_show_add: bool,
+    profiles_add_url: &str,
+    profiles_detail_tab: profiles::DetailTab,
+    profiles_overwrite_sub_tab: profiles::OverwriteSubTab,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
@@ -70,7 +77,7 @@ pub fn render_page(
         let content: AnyElement = match page {
             Page::Dashboard => dashboard::dashboard_view(theme, cx, &strings).into_any_element(),
             Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_search_text, proxies_expanded, search_input_entity).into_any_element(),
-            Page::Profiles => placeholders::profiles_view(theme, &strings).into_any_element(),
+            Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_search_text, profiles_selected_index, profiles_show_add, profiles_add_url, profiles_detail_tab, profiles_overwrite_sub_tab).into_any_element(),
             Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
             Page::Connections => connections::connections_view(theme, cx, &strings, connections_search_text, connections_selected_index).into_any_element(),
             Page::Resources => placeholders::resources_view(theme, &strings).into_any_element(),
