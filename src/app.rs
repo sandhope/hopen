@@ -5,8 +5,10 @@
 
 use gpui::*;
 
+use crate::components::dialog::{self, DialogParams};
 use crate::components::sidebar;
 use crate::components::titlebar;
+use crate::components::toast::{self, ToastData};
 use crate::current_theme;
 use crate::i18n::I18nManager;
 use crate::navigation::{Page, ToolsSubPage};
@@ -62,6 +64,10 @@ pub struct AppView {
     pub sidebar_width: f32,
     /// Whether the user is currently dragging the sidebar resize handle.
     sidebar_resizing: bool,
+    /// Active dialog overlay. When `Some`, a modal dialog is rendered on top.
+    pub active_dialog: Option<DialogParams>,
+    /// Active toast notifications. Dismissed manually via close button.
+    pub toasts: Vec<ToastData>,
 }
 
 impl AppView {
@@ -91,6 +97,8 @@ impl AppView {
             settings_data: SettingsData::default(),
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
+            active_dialog: None,
+            toasts: Vec::new(),
         }
     }
 }
@@ -149,66 +157,94 @@ impl Render for AppView {
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);
 
+        // Build overlay elements (dialog + toasts).
+        // `Entity` is not Copy, so clone it for each usage.
+        let dialog_overlay: Option<AnyElement> = self.active_dialog.as_ref().map(|params| {
+            let params = dialog::DialogParams {
+                kind: params.kind,
+                title: params.title.clone(),
+                body: params.body.clone(),
+                primary_label: params.primary_label.clone(),
+                secondary_label: params.secondary_label.clone(),
+            };
+            dialog::render_dialog(&params, &theme, entity.clone()).into_any_element()
+        });
+
+        let toast_overlay: Option<AnyElement> =
+            toast::render_toasts(&self.toasts, &theme, entity.clone())
+                .map(|el| el.into_any_element());
+
+        // Collect all direct children of the root div.
+        let mut children: Vec<AnyElement> = Vec::new();
+        children.push(titlebar.into_any_element());
+        // Body: sidebar + resize-handle + content — offset by titlebar height.
+        //
+        // Resize logic uses raw mouse events (gpui 0.2.2 lacks `on_drag`
+        // on `Div`):
+        //   1. on_any_mouse_down on handle → set sidebar_resizing = true
+        //   2. on_mouse_move on body → if resizing, update sidebar_width
+        //      from mouse x coordinate
+        //   3. capture_any_mouse_up on body → set sidebar_resizing = false
+        children.push(
+            div()
+                .flex()
+                .flex_1()
+                .pt(px(titlebar::TITLEBAR_HEIGHT))
+                .overflow_hidden()
+                .on_mouse_move({
+                    let entity = entity.clone();
+                    move |event: &MouseMoveEvent, _window, app| {
+                        entity.update(app, |this, _| {
+                            if this.sidebar_resizing {
+                                let current_x: f32 = event.position.x.into();
+                                this.sidebar_width =
+                                    current_x.clamp(160.0, 360.0);
+                            }
+                        });
+                    }
+                })
+                .capture_any_mouse_up({
+                    let entity = entity.clone();
+                    move |_event: &MouseUpEvent, _window, app| {
+                        entity.update(app, |this, _| {
+                            this.sidebar_resizing = false;
+                        });
+                    }
+                })
+                .child(sidebar)
+                .child(
+                    div()
+                        .w(px(4.0))
+                        .h_full()
+                        .cursor(CursorStyle::ResizeLeftRight)
+                        .hover(|s| s.bg(rgba(0x00000010)))
+                        .on_any_mouse_down({
+                            let entity = entity.clone();
+                            move |_event: &MouseDownEvent, _window, app| {
+                                entity.update(app, |this, _| {
+                                    this.sidebar_resizing = true;
+                                });
+                            }
+                        }),
+                )
+                .child(div().flex().flex_col().flex_1().overflow_hidden().child(content))
+                .into_any_element(),
+        );
+
+        // Append overlay children (dialog → toast stack).
+        if let Some(dlg) = dialog_overlay {
+            children.push(dlg);
+        }
+        if let Some(toast) = toast_overlay {
+            children.push(toast);
+        }
+
         div()
             .flex()
             .flex_col()
             .size_full()
             .bg(rgb(theme.content_bg))
             .text_color(rgb(theme.text_primary))
-            // Custom titlebar
-            .child(titlebar)
-            // Body: sidebar + resize-handle + content — offset by titlebar height.
-            //
-            // Resize logic uses raw mouse events (gpui 0.2.2 lacks `on_drag`
-            // on `Div`):
-            //   1. on_any_mouse_down on handle → set sidebar_resizing = true
-            //   2. on_mouse_move on body → if resizing, update sidebar_width
-            //      from mouse x coordinate
-            //   3. capture_any_mouse_up on body → set sidebar_resizing = false
-            .child(
-                div()
-                    .flex()
-                    .flex_1()
-                    .pt(px(titlebar::TITLEBAR_HEIGHT))
-                    .overflow_hidden()
-                    .on_mouse_move({
-                        let entity = entity.clone();
-                        move |event: &MouseMoveEvent, _window, app| {
-                            entity.update(app, |this, _| {
-                                if this.sidebar_resizing {
-                                    let current_x: f32 = event.position.x.into();
-                                    this.sidebar_width =
-                                        current_x.clamp(160.0, 360.0);
-                                }
-                            });
-                        }
-                    })
-                    .capture_any_mouse_up({
-                        let entity = entity.clone();
-                        move |_event: &MouseUpEvent, _window, app| {
-                            entity.update(app, |this, _| {
-                                this.sidebar_resizing = false;
-                            });
-                        }
-                    })
-                    .child(sidebar)
-                    .child(
-                        // Resize handle: drag left/right to adjust sidebar width.
-                        div()
-                            .w(px(4.0))
-                            .h_full()
-                            .cursor(CursorStyle::ResizeLeftRight)
-                            .hover(|s| s.bg(rgba(0x00000010)))
-                            .on_any_mouse_down({
-                                let entity = entity.clone();
-                                move |_event: &MouseDownEvent, _window, app| {
-                                    entity.update(app, |this, _| {
-                                        this.sidebar_resizing = true;
-                                    });
-                                }
-                            }),
-                    )
-                    .child(div().flex().flex_col().flex_1().overflow_hidden().child(content)),
-            )
+            .children(children)
     }
 }

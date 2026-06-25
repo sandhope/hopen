@@ -10,6 +10,8 @@
 use gpui::*;
 use gpui::prelude::*;
 
+use crate::components::dialog::DialogParams;
+use crate::components::toast::ToastData;
 use crate::i18n::{I18nStrings, language_display_name};
 use crate::navigation::ToolsSubPage;
 use crate::theme::{AccentColor, Theme, ThemeMode};
@@ -626,6 +628,7 @@ pub(super) fn backup_restore_sub_page_body(
                     .cursor_pointer().hover(|s| s.bg(rgb(theme.accent_hover)))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _: &mut Window, cx| {
                         this.settings_data.backup_last_time = "Just now".into();
+                        this.toasts.push(ToastData::success("Backup completed successfully"));
                         cx.notify();
                     }))
                     .child(svg().path("svg/backup-restore.svg").size(px(16.0)).text_color(rgb(0xffffff)))
@@ -638,7 +641,10 @@ pub(super) fn backup_restore_sub_page_body(
                     .bg(rgb(theme.accent)).text_color(rgb(0xffffff))
                     .cursor_pointer().hover(|s| s.bg(rgb(theme.accent_hover)))
                     .on_click(cx.listener(|this, _: &ClickEvent, _: &mut Window, cx| {
-                        let _ = this;
+                        this.active_dialog = Some(DialogParams::confirm(
+                            "Export Configuration",
+                            "Save current configuration to a file. All settings including profiles, rules, and preferences will be included.",
+                        ));
                         cx.notify();
                     }))
                     .child(svg().path("svg/basic-config.svg").size(px(16.0)).text_color(rgb(0xffffff)))
@@ -648,10 +654,13 @@ pub(super) fn backup_restore_sub_page_body(
                 div().id("restore-backup-btn")
                     .flex().items_center().gap(px(10.0))
                     .px(px(16.0)).py(px(12.0)).rounded(px(8.0))
-                    .bg(rgb(theme.accent)).text_color(rgb(0xffffff))
-                    .cursor_pointer().hover(|s| s.bg(rgb(theme.accent_hover)))
+                    .bg(rgb(theme.status_error)).text_color(rgb(0xffffff))
+                    .cursor_pointer().hover(|s| s.bg(rgb(0xdc2626)))
                     .on_click(cx.listener(|this, _: &ClickEvent, _: &mut Window, cx| {
-                        let _ = this;
+                        this.active_dialog = Some(DialogParams::danger(
+                            "Restore from Backup",
+                            "This will overwrite your current configuration with the backup data. This action cannot be undone. Continue?",
+                        ));
                         cx.notify();
                     }))
                     .child(svg().path("svg/advanced-config.svg").size(px(16.0)).text_color(rgb(0xffffff)))
