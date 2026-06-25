@@ -351,7 +351,7 @@ fn proxy_group_section(
                 .hover(|s| s.bg(rgb(theme.surface_variant)))
                 .on_click(cx.listener(move |this, _, _, cx| {
                     let e = this.proxies_expanded.entry(gname.clone());
-                    let v = e.or_insert(false);
+                    let v = e.or_insert(expanded);
                     *v = !*v;
                     cx.notify();
                 }))
