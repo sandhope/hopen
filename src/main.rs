@@ -6,8 +6,10 @@
 mod app;
 mod assets;
 mod components;
+mod core;
 mod i18n;
 mod navigation;
+mod state;
 mod theme;
 mod views;
 
@@ -15,8 +17,13 @@ use gpui::*;
 
 use app::AppView;
 use assets::Assets;
+use core::manager::CoreManager;
 use i18n::I18nManager;
 use navigation::Page;
+use state::config::ConfigState;
+use state::connection::ConnectionState;
+use state::log::LogState;
+use state::proxy::ProxyState;
 use theme::{AccentColor, Theme, ThemeMode};
 
 // ─── Outbound Mode ────────────────────────────────────────────
@@ -135,6 +142,15 @@ fn main() {
             isp: None,
         });
 
+        // Initialize core engine manager (IPC + Go process management)
+        cx.set_global(CoreManager::new());
+
+        // Initialize domain state types
+        cx.set_global(ConfigState::default());
+        cx.set_global(ProxyState::default());
+        cx.set_global(ConnectionState::default());
+        cx.set_global(LogState::default());
+
         // Initialize i18n — auto-detect system language
         let lang_id = i18n::detect_system_language_id();
         let lang_id = load_language_id().unwrap_or(lang_id);
@@ -180,9 +196,31 @@ fn main() {
         });
 
         cx.on_action(|_: &ToggleCore, cx| {
+            let mut core_running = false;
             cx.update_global::<AppState, _>(|state, _cx| {
                 state.core_running = !state.core_running;
+                core_running = state.core_running;
             });
+
+            // Actually start/stop the Go core engine
+            if core_running {
+                if let Some(manager) = cx.try_global::<CoreManager>() {
+                    match manager.start() {
+                        Ok(()) => log::info!("Core engine started"),
+                        Err(e) => {
+                            log::error!("Failed to start core: {e}");
+                            // Revert state
+                            cx.update_global::<AppState, _>(|state, _cx| {
+                                state.core_running = false;
+                            });
+                        }
+                    }
+                }
+            } else {
+                if let Some(manager) = cx.try_global::<CoreManager>() {
+                    manager.stop();
+                }
+            }
             cx.refresh_windows();
         });
 
