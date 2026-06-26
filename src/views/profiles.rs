@@ -7,6 +7,7 @@
 /// - Add subscription panel (togglable)
 /// - Detail panel: tabbed (Info / YAML Preview / Overwrite)
 
+use crate::components::text_input::TextInput;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -111,17 +112,17 @@ pub(super) fn profiles_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
     selected_index: Option<usize>,
     show_add: bool,
-    add_url: &str,
     detail_tab: DetailTab,
     overwrite_sub_tab: OverwriteSubTab,
+    search: &Entity<TextInput>,
+    url_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let profiles = build_mock_profiles();
 
     // Filter by search text
-    let search_text = search_text.to_string();
+    let search_text = search.read(cx).text().to_string();
     let ft = search_text.to_lowercase();
     let filtered: Vec<(usize, MockProfile)> = profiles
         .iter()
@@ -149,7 +150,7 @@ pub(super) fn profiles_view(
         .px(px(24.0))
         .py(px(8.0))
         // ── Toolbar ────────────────────────────────
-        .child(render_toolbar(theme, cx, strings, &search_text, has_search, show_add, add_url))
+        .child(render_toolbar(theme, cx, strings, &search_text, has_search, show_add, search))
         // ── Search indicator ──────────────────────
         .when(has_search, |s| {
             let ft = search_text.clone();
@@ -173,9 +174,10 @@ pub(super) fn profiles_view(
                             .cursor_pointer()
                             .on_any_mouse_down({
                                 let entity = cx.entity();
+                                let search = search.clone();
                                 move |_: &MouseDownEvent, _window, app| {
+                                    search.update(app, |t, _| t.clear());
                                     entity.update(app, |this, _| {
-                                        this.profiles_search_text.clear();
                                         this.profiles_selected_index = None;
                                     });
                                 }
@@ -186,7 +188,7 @@ pub(super) fn profiles_view(
         })
         // ── Add subscription panel ────────────────
         .when(show_add, |s| {
-            s.child(render_add_panel(theme, cx, strings, add_url))
+            s.child(render_add_panel(theme, cx, strings, url_input))
         })
         // ── Profile list ──────────────────────────
         .child(render_profile_list(theme, cx, strings, &filtered, selected_index))
@@ -203,53 +205,20 @@ fn render_toolbar(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
-    has_search: bool,
+    _search_text: &str,
+    _has_search: bool,
     show_add: bool,
-    _add_url: &str,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let placeholder = strings.profiles_search_placeholder.to_string();
-    let display = search_text.to_string();
     let add_label = strings.profiles_add_subscription.to_string();
     let cancel_label = strings.profiles_cancel.to_string();
+    let search_rendered = search.update(cx, |t, cx| t.render(theme, cx));
 
     div()
         .flex()
         .items_center()
         .gap(px(8.0))
-        .child(
-            // Search input
-            div()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
-                .flex_1()
-                .px(px(12.0))
-                .py(px(8.0))
-                .rounded(px(CARD_RADIUS))
-                .bg(rgb(theme.surface))
-                .border_1()
-                .border_color(rgb(theme.border_light))
-                .cursor_pointer()
-                .child(
-                    div()
-                        .text_size(px(14.0))
-                        .text_color(rgb(theme.text_disabled))
-                        .flex_shrink_0()
-                        .child("\u{1F50D}"),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .text_size(px(13.0))
-                        .when(has_search, |s| {
-                            s.text_color(rgb(theme.text_primary)).child(display)
-                        })
-                        .when(!has_search, |s| {
-                            s.text_color(rgb(theme.text_disabled)).child(placeholder)
-                        }),
-                ),
-        )
+        .child(search_rendered)
         // Add subscription button
         .child(
             div()
@@ -285,14 +254,13 @@ fn render_add_panel(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    add_url: &str,
+    url_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let title = strings.profiles_add_title.to_string();
     let url_label = strings.profiles_url_label.to_string();
-    let url_placeholder = strings.profiles_url_placeholder.to_string();
-    let url_display = add_url.to_string();
     let save_label = strings.profiles_save.to_string();
     let cancel_label = strings.profiles_cancel.to_string();
+    let url_rendered = url_input.update(cx, |t, cx| t.render_plain(theme, cx));
 
     div()
         .flex()
@@ -345,24 +313,11 @@ fn render_add_panel(
                             div()
                                 .flex()
                                 .items_center()
-                                .px(px(12.0))
-                                .py(px(8.0))
                                 .rounded(px(6.0))
                                 .bg(rgb(theme.content_bg))
                                 .border_1()
                                 .border_color(rgb(theme.border_light))
-                                .cursor_pointer()
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .text_size(px(13.0))
-                                        .when(url_display.is_empty(), |s| {
-                                            s.text_color(rgb(theme.text_disabled)).child(url_placeholder.clone())
-                                        })
-                                        .when(!url_display.is_empty(), |s| {
-                                            s.text_color(rgb(theme.text_primary)).child(url_display)
-                                        }),
-                                ),
+                                .child(url_rendered),
                         ),
                 )
                 // Action buttons

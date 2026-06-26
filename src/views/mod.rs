@@ -19,50 +19,44 @@ pub mod profiles;
 mod proxies;
 mod requests;
 pub mod resources;
-pub mod search_input;
 pub mod settings;
 mod shared;
 
 use gpui::*;
 
+use crate::components::text_input::TextInput;
 use crate::i18n::I18nStrings;
 use crate::navigation::{Page, ToolsSubPage};
 use crate::theme::Theme;
 pub use logs::LogLevelFilter;
-use search_input::SearchInput;
 
 /// Route to the correct page view based on the current navigation state.
-///
-/// `cx` is the AppView context, needed for interactive elements (e.g. theme toggle).
-/// `tools_sub_page` is the active drill-down sub-page within Settings, or `None`
-/// for the main settings list.
 pub fn render_page(
     page: Page,
     tools_sub_page: Option<ToolsSubPage>,
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
-    proxies_search_text: &str,
     proxies_expanded: &std::collections::HashMap<String, bool>,
-    search_input_entity: &Entity<SearchInput>,
-    requests_search_text: &str,
+    proxies_search: &Entity<TextInput>,
+    requests_search: &Entity<TextInput>,
     requests_selected_index: Option<usize>,
-    logs_search_text: &str,
+    logs_search: &Entity<TextInput>,
     logs_filter_level: LogLevelFilter,
-    connections_search_text: &str,
+    connections_search: &Entity<TextInput>,
     connections_selected_index: Option<usize>,
-    profiles_search_text: &str,
+    profiles_search: &Entity<TextInput>,
     profiles_selected_index: Option<usize>,
     profiles_show_add: bool,
-    profiles_add_url: &str,
+    profiles_url_input: &Entity<TextInput>,
     profiles_detail_tab: profiles::DetailTab,
     profiles_overwrite_sub_tab: profiles::OverwriteSubTab,
     resources_state: &resources::ResourcesState,
+    resources_edit_input: &Entity<TextInput>,
     settings_data: &settings::SettingsData,
 ) -> impl IntoElement {
     let strings = cx.global::<crate::i18n::I18nManager>().strings_arc();
 
     // Compute header and content, accounting for Settings sub-pages.
-    // We collect both into AnyElement so the outer div has a single concrete return type.
     let (header_elem, content_elem): (AnyElement, AnyElement) = if page == Page::Tools {
         if let Some(sub) = tools_sub_page {
             let header = render_sub_page_header(sub, theme, cx, &strings).into_any_element();
@@ -79,12 +73,12 @@ pub fn render_page(
         let title = strings.page_title(page);
         let content: AnyElement = match page {
             Page::Dashboard => dashboard::dashboard_view(theme, cx, &strings).into_any_element(),
-            Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_search_text, proxies_expanded, search_input_entity).into_any_element(),
-            Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_search_text, profiles_selected_index, profiles_show_add, profiles_add_url, profiles_detail_tab, profiles_overwrite_sub_tab).into_any_element(),
-            Page::Requests => requests::requests_view(theme, cx, &strings, requests_search_text, requests_selected_index).into_any_element(),
-            Page::Connections => connections::connections_view(theme, cx, &strings, connections_search_text, connections_selected_index).into_any_element(),
-            Page::Resources => resources::resources_view(theme, cx, &strings, resources_state).into_any_element(),
-            Page::Logs => logs::logs_view(theme, cx, &strings, logs_search_text, logs_filter_level).into_any_element(),
+            Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_expanded, proxies_search).into_any_element(),
+            Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_selected_index, profiles_show_add, profiles_detail_tab, profiles_overwrite_sub_tab, profiles_search, profiles_url_input).into_any_element(),
+            Page::Requests => requests::requests_view(theme, cx, &strings, requests_selected_index, requests_search).into_any_element(),
+            Page::Connections => connections::connections_view(theme, cx, &strings, connections_selected_index, connections_search).into_any_element(),
+            Page::Resources => resources::resources_view(theme, cx, &strings, resources_state, resources_edit_input).into_any_element(),
+            Page::Logs => logs::logs_view(theme, cx, &strings, logs_filter_level, logs_search).into_any_element(),
             Page::Tools => unreachable!(),
         };
         (page_header(title, theme).into_any_element(), content)

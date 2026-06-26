@@ -1,6 +1,6 @@
 /// Proxies view — proxy group list, node management, speed test, provider list.
 
-use super::search_input::SearchInput;
+use crate::components::text_input::TextInput;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -74,21 +74,28 @@ pub(super) fn proxies_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
     expanded_map: &std::collections::HashMap<String, bool>,
-    search_input_entity: &Entity<SearchInput>,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let groups = build_mock_groups();
 
-    let search_text = search_text.to_string();
+    let search_text = search.read(cx).text().to_string();
     let search_has_text = !search_text.is_empty();
     let expanded_map = expanded_map.clone();
+    let search_rendered = search.update(cx, |t, cx| t.render(theme, cx));
 
     div()
         .flex()
         .flex_col()
         .size_full()
-        .child(render_search_widget(theme, strings, cx, &search_text, search_input_entity))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .px(px(24.0))
+                .py(px(12.0))
+                .child(search_rendered),
+        )
         .child(
             div()
                 .id("proxies-scroll-area")
@@ -137,9 +144,12 @@ pub(super) fn proxies_view(
                             .text_size(px(12.0))
                             .text_color(rgb(theme.accent))
                             .cursor_pointer()
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.proxies_search_text.clear();
-                                cx.notify();
+                            .on_click(cx.listener({
+                                let search = search.clone();
+                                move |_this: &mut crate::app::AppView, _, _, cx| {
+                                    search.update(cx, |t, _| t.clear());
+                                    cx.notify();
+                                }
                             }))
                             .child("Clear"),
                     ),
@@ -225,82 +235,6 @@ struct MockProvider {
     name: &'static str,
     node_count: usize,
     updated: &'static str,
-}
-
-// ─── Search bar ───────────────────────────────────────────────────────
-
-fn render_search_widget(
-    theme: &Theme,
-    strings: &I18nStrings,
-    cx: &mut Context<crate::app::AppView>,
-    search_text: &str,
-    search_entity: &Entity<SearchInput>,
-) -> impl IntoElement + use<> {
-    let has_text = !search_text.is_empty();
-    let display = search_text.to_string();
-    let placeholder = strings.proxy_search_placeholder.to_string();
-    let focus_handle = search_entity.read(cx).focus_handle_raw().clone();
-
-    div()
-        .flex()
-        .items_center()
-        .gap(px(8.0))
-        .px(px(24.0))
-        .py(px(12.0))
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
-                .flex_1()
-                .px(px(12.0))
-                .py(px(8.0))
-                .rounded(px(CARD_RADIUS))
-                .bg(rgb(theme.surface))
-                .border_1()
-                .border_color(rgb(theme.border_light))
-                .cursor_pointer()
-                .track_focus(&focus_handle)
-                .on_key_down(cx.listener({
-                    let entity = search_entity.clone();
-                    move |this: &mut crate::app::AppView,
-                          event: &KeyDownEvent,
-                          window: &mut Window,
-                          cx| {
-                        let _ = this;
-                        entity.read(cx).focus_handle_raw().clone().focus(window);
-                        if let Some(ref ch) = event.keystroke.key_char {
-                            let s = ch.to_string();
-                            this.proxies_search_text.push_str(&s);
-                        } else {
-                            match event.keystroke.key.as_str() {
-                                "backspace" => { this.proxies_search_text.pop(); }
-                                "space" => { this.proxies_search_text.push(' '); }
-                                _ => {}
-                            }
-                        }
-                        cx.notify();
-                    }
-                }))
-                .child(
-                    div()
-                        .text_size(px(14.0))
-                        .text_color(rgb(theme.text_disabled))
-                        .flex_shrink_0()
-                        .child("\u{1F50D}"),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .text_size(px(13.0))
-                        .when(has_text, |s| {
-                            s.text_color(rgb(theme.text_primary)).child(display)
-                        })
-                        .when(!has_text, |s| {
-                            s.text_color(rgb(theme.text_disabled)).child(placeholder)
-                        }),
-                ),
-        )
 }
 
 // ─── Proxy group section ──────────────────────────────────────────────

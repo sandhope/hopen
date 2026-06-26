@@ -1,5 +1,6 @@
 /// Logs view — real-time log stream, level filter, search, copy, export, clear.
 
+use crate::components::text_input::TextInput;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -155,13 +156,13 @@ pub(super) fn logs_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
     filter_level: LogLevelFilter,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let logs = build_mock_logs();
 
     // Filter by level and search text
-    let st = search_text.to_string();
+    let st = search.read(cx).text().to_string();
     let st_lower = st.to_lowercase();
     let filtered: Vec<(usize, LogEntry)> = logs
         .iter()
@@ -187,7 +188,7 @@ pub(super) fn logs_view(
         .px(px(24.0))
         .py(px(8.0))
         // ── Toolbar ────────────────────────────────
-        .child(render_toolbar(theme, cx, strings, filter_level, &st, has_search))
+        .child(render_toolbar(theme, cx, strings, filter_level, &st, has_search, search))
         // ── Search indicator ──────────────────────
         .when(has_search, |s| {
             let ft = st.clone();
@@ -210,9 +211,12 @@ pub(super) fn logs_view(
                             .text_size(px(12.0))
                             .text_color(rgb(theme.accent))
                             .cursor_pointer()
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.logs_search_text.clear();
-                                cx.notify();
+                            .on_click(cx.listener({
+                                let search = search.clone();
+                                move |_this: &mut crate::app::AppView, _, _, cx| {
+                                    search.update(cx, |t, _| t.clear());
+                                    cx.notify();
+                                }
                             }))
                             .child("Clear"),
                     ),
@@ -232,12 +236,12 @@ fn render_toolbar(
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
     filter_level: LogLevelFilter,
-    search_text: &str,
-    has_search: bool,
+    _search_text: &str,
+    _has_search: bool,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let placeholder = strings.logs_search_placeholder.to_string();
-    let display = search_text.to_string();
     let clear_label = strings.logs_clear.to_string();
+    let search_rendered = search.update(cx, |t, cx| t.render_plain(theme, cx));
 
     div()
         .flex()
@@ -311,37 +315,8 @@ fn render_toolbar(
         // ── Search input ──────────────────────────
         .child(
             div()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
                 .w(px(192.0))
-                .px(px(12.0))
-                .py(px(6.0))
-                .rounded(px(CARD_RADIUS))
-                .bg(rgb(theme.surface))
-                .border_1()
-                .border_color(rgb(theme.border_light))
-                .cursor_pointer()
-                .child(
-                    div()
-                        .text_size(px(14.0))
-                        .text_color(rgb(theme.text_disabled))
-                        .flex_shrink_0()
-                        .child("\u{1F50D}"),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .text_size(px(12.0))
-                        .overflow_hidden()
-                        .text_ellipsis()
-                        .when(has_search, |s| {
-                            s.text_color(rgb(theme.text_primary)).child(display)
-                        })
-                        .when(!has_search, |s| {
-                            s.text_color(rgb(theme.text_disabled)).child(placeholder)
-                        }),
-                ),
+                .child(search_rendered),
         )
         // ── Clear button ──────────────────────────
         .child(
@@ -356,7 +331,6 @@ fn render_toolbar(
                 .cursor_pointer()
                 .hover(|s| s.opacity(0.85))
                 .on_click(cx.listener(|this, _, _, cx| {
-                    this.logs_search_text.clear();
                     this.logs_filter_level = LogLevelFilter::All;
                     cx.notify();
                 }))

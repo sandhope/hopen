@@ -12,10 +12,10 @@ use crate::components::toast::{self, ToastData};
 use crate::current_theme;
 use crate::i18n::I18nManager;
 use crate::navigation::{Page, ToolsSubPage};
+use crate::components::text_input::TextInput;
 use crate::views;
 use crate::views::LogLevelFilter;
 use crate::views::resources::ResourcesState;
-use crate::views::search_input::SearchInput;
 use crate::views::settings::SettingsData;
 
 /// The root view that composes sidebar navigation with page content.
@@ -24,40 +24,38 @@ pub struct AppView {
     pub current_page: Page,
     /// Active sub-page within Settings (Tools). `None` means show the main settings list.
     pub tools_sub_page: Option<ToolsSubPage>,
-    /// Search text for the Proxies page filter.
-    pub proxies_search_text: String,
     /// Which proxy groups are expanded: group-name → expanded.
     pub proxies_expanded: std::collections::HashMap<String, bool>,
-    /// Dedicated search input entity with its own focus handle.
-    pub search_input_entity: Entity<SearchInput>,
-    /// Whether we've already auto-focused the search input on this page visit.
-    pub proxies_search_focused: bool,
-    /// Search text for the Requests page filter.
-    pub requests_search_text: String,
+    /// Search input entity for the Proxies page.
+    pub proxies_search: Entity<TextInput>,
+    /// Search input entity for the Requests page.
+    pub requests_search: Entity<TextInput>,
     /// Currently selected request index in the Requests page.
     pub requests_selected_index: Option<usize>,
-    /// Search text for the Logs page filter.
-    pub logs_search_text: String,
+    /// Search input entity for the Logs page.
+    pub logs_search: Entity<TextInput>,
     /// Active level filter for the Logs page.
     pub logs_filter_level: LogLevelFilter,
-    /// Search text for the Connections page filter.
-    pub connections_search_text: String,
+    /// Search input entity for the Connections page.
+    pub connections_search: Entity<TextInput>,
     /// Currently selected connection index in the Connections page.
     pub connections_selected_index: Option<usize>,
-    /// Search text for the Profiles page filter.
-    pub profiles_search_text: String,
+    /// Search input entity for the Profiles page.
+    pub profiles_search: Entity<TextInput>,
     /// Currently selected profile index in the Profiles page.
     pub profiles_selected_index: Option<usize>,
     /// Whether the Add Subscription panel is shown.
     pub profiles_show_add: bool,
-    /// URL text typed in the Add Subscription panel.
-    pub profiles_add_url: String,
+    /// URL input entity for the Add Subscription panel.
+    pub profiles_url_input: Entity<TextInput>,
     /// Active tab in the profiles detail panel.
     pub profiles_detail_tab: Option<crate::views::profiles::DetailTab>,
     /// Active sub-tab in the profiles overwrite section.
     pub profiles_overwrite_sub_tab: Option<crate::views::profiles::OverwriteSubTab>,
     /// Resources page state (GeoIP, GeoSite, MMDB, ASN management).
     pub resources_state: ResourcesState,
+    /// Text input entity for editing resource URLs.
+    pub resources_edit_input: Entity<TextInput>,
     /// Settings page state (all editable settings values).
     pub settings_data: SettingsData,
     /// Current sidebar width (pixels), adjustable via drag.
@@ -68,37 +66,52 @@ pub struct AppView {
     pub active_dialog: Option<DialogParams>,
     /// Active toast notifications. Dismissed manually via close button.
     pub toasts: Vec<ToastData>,
+    /// Whether we've already auto-focused the search input on this page visit.
+    search_focused: bool,
 }
 
 impl AppView {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search_input_entity = cx.new(|cx| SearchInput::new(window, cx));
+        let i18n = cx.global::<I18nManager>();
+        let s = i18n.strings_arc();
+
+        let proxies_search = cx.new(|cx| TextInput::new(s.proxy_search_placeholder, window, cx));
+        let requests_search = cx.new(|cx| TextInput::new(s.requests_search_placeholder, window, cx));
+        let logs_search = cx.new(|cx| TextInput::new(s.logs_search_placeholder, window, cx));
+        let connections_search = cx.new(|cx| TextInput::new(s.connections_search_placeholder, window, cx));
+        let profiles_search = cx.new(|cx| TextInput::new(s.profiles_search_placeholder, window, cx));
+        let profiles_url_input = cx.new(|cx| TextInput::new(s.profiles_url_placeholder, window, cx));
+        let resources_edit_input = cx.new(|cx| {
+            let mut ti = TextInput::new(s.resources_url_placeholder, window, cx);
+            ti.set_font_family("monospace");
+            ti
+        });
 
         Self {
             current_page: Page::Dashboard,
             tools_sub_page: None,
-            proxies_search_text: String::new(),
             proxies_expanded: std::collections::HashMap::new(),
-            search_input_entity,
-            proxies_search_focused: false,
-            requests_search_text: String::new(),
+            proxies_search,
+            requests_search,
             requests_selected_index: None,
-            logs_search_text: String::new(),
+            logs_search,
             logs_filter_level: LogLevelFilter::All,
-            connections_search_text: String::new(),
+            connections_search,
             connections_selected_index: None,
-            profiles_search_text: String::new(),
+            profiles_search,
             profiles_selected_index: None,
             profiles_show_add: false,
-            profiles_add_url: String::new(),
+            profiles_url_input,
             profiles_detail_tab: None,
             profiles_overwrite_sub_tab: None,
             resources_state: ResourcesState::new(),
+            resources_edit_input,
             settings_data: SettingsData::default(),
             sidebar_width: crate::theme::SIDEBAR_WIDTH,
             sidebar_resizing: false,
             active_dialog: None,
             toasts: Vec::new(),
+            search_focused: false,
         }
     }
 }
@@ -112,16 +125,44 @@ impl Render for AppView {
         let theme = current_theme(cx);
         let strings = cx.global::<I18nManager>().strings_arc();
 
-        // Auto-focus the search input when navigating to the Proxies page.
-        if self.current_page == Page::Proxies && !self.proxies_search_focused {
-            self.proxies_search_focused = true;
-            self.search_input_entity.update(cx, |input, cx| {
-                input.focus(window, cx);
-            });
+        // Auto-focus the search input when navigating to pages with search.
+        let should_focus_search = matches!(
+            self.current_page,
+            Page::Proxies | Page::Requests | Page::Connections | Page::Logs | Page::Profiles
+        );
+        if should_focus_search && !self.search_focused {
+            self.search_focused = true;
+            let search_entity = match self.current_page {
+                Page::Proxies => Some(&self.proxies_search),
+                Page::Requests => Some(&self.requests_search),
+                Page::Connections => Some(&self.connections_search),
+                Page::Logs => Some(&self.logs_search),
+                Page::Profiles => Some(&self.profiles_search),
+                _ => None,
+            };
+            if let Some(entity) = search_entity {
+                entity.update(cx, |input, cx| {
+                    input.focus(window, cx);
+                });
+            }
         }
-        // Reset the flag when leaving the Proxies page.
-        if self.current_page != Page::Proxies {
-            self.proxies_search_focused = false;
+        if !should_focus_search {
+            self.search_focused = false;
+        }
+
+        // Initialize resources edit input when opening the edit dialog.
+        if self.resources_state.editing_index.is_some()
+            && self.resources_edit_input.read(cx).text().is_empty()
+        {
+            let url = self
+                .resources_state
+                .items
+                .get(self.resources_state.editing_index.unwrap())
+                .map(|r| r.url.to_string())
+                .unwrap_or_default();
+            self.resources_edit_input.update(cx, |input, _| {
+                input.set_text(url);
+            });
         }
 
         // Capture entity before mutable cx borrows (for mouse event closures).
@@ -137,22 +178,22 @@ impl Render for AppView {
             self.tools_sub_page,
             &theme,
             cx,
-            &self.proxies_search_text,
             &self.proxies_expanded,
-            &self.search_input_entity,
-            &self.requests_search_text,
+            &self.proxies_search,
+            &self.requests_search,
             self.requests_selected_index,
-            &self.logs_search_text,
+            &self.logs_search,
             self.logs_filter_level,
-            &self.connections_search_text,
+            &self.connections_search,
             self.connections_selected_index,
-            &self.profiles_search_text,
+            &self.profiles_search,
             self.profiles_selected_index,
             self.profiles_show_add,
-            &self.profiles_add_url,
+            &self.profiles_url_input,
             self.profiles_detail_tab.unwrap_or(views::profiles::DetailTab::Info),
             self.profiles_overwrite_sub_tab.unwrap_or(views::profiles::OverwriteSubTab::Standard),
             &self.resources_state,
+            &self.resources_edit_input,
             &self.settings_data,
         );
         let titlebar = titlebar::render_titlebar(&theme, window, &strings);

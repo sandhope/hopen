@@ -4,6 +4,7 @@
 /// Detail: upload / download / duration / source / dest / host / network / chain
 /// Actions: close single connection, close all, search filter.
 
+use crate::components::text_input::TextInput;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -276,13 +277,13 @@ pub(super) fn connections_view(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
     selected_index: Option<usize>,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let connections = build_mock_connections();
 
     // Filter by search text
-    let search_text = search_text.to_string();
+    let search_text = search.read(cx).text().to_string();
     let ft = search_text.to_lowercase();
     let filtered: Vec<(usize, MockConnection)> = connections
         .iter()
@@ -312,7 +313,7 @@ pub(super) fn connections_view(
         .px(px(24.0))
         .py(px(8.0))
         // ── Toolbar ────────────────────────────────
-        .child(render_toolbar(theme, cx, strings, &search_text, has_search))
+        .child(render_toolbar(theme, cx, strings, &search_text, has_search, search))
         // ── Search indicator ──────────────────────
         .when(has_search, |s| {
             let ft = search_text.clone();
@@ -336,9 +337,10 @@ pub(super) fn connections_view(
                             .cursor_pointer()
                             .on_any_mouse_down({
                                 let entity = cx.entity();
+                                let search = search.clone();
                                 move |_: &MouseDownEvent, _window, app| {
+                                    search.update(app, |t, _| t.clear());
                                     entity.update(app, |this, _| {
-                                        this.connections_search_text.clear();
                                         this.connections_selected_index = None;
                                     });
                                     app.refresh_windows();
@@ -363,50 +365,18 @@ fn render_toolbar(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
-    search_text: &str,
-    has_search: bool,
+    _search_text: &str,
+    _has_search: bool,
+    search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let placeholder = strings.connections_search_placeholder.to_string();
-    let display = search_text.to_string();
     let close_all_label = strings.connections_close_all.to_string();
+    let search_rendered = search.update(cx, |t, cx| t.render(theme, cx));
 
     div()
         .flex()
         .items_center()
         .gap(px(8.0))
-        .child(
-            // Search input
-            div()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
-                .flex_1()
-                .px(px(12.0))
-                .py(px(8.0))
-                .rounded(px(CARD_RADIUS))
-                .bg(rgb(theme.surface))
-                .border_1()
-                .border_color(rgb(theme.border_light))
-                .cursor_pointer()
-                .child(
-                    div()
-                        .text_size(px(14.0))
-                        .text_color(rgb(theme.text_disabled))
-                        .flex_shrink_0()
-                        .child("\u{1F50D}"),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .text_size(px(13.0))
-                        .when(has_search, |s| {
-                            s.text_color(rgb(theme.text_primary)).child(display)
-                        })
-                        .when(!has_search, |s| {
-                            s.text_color(rgb(theme.text_disabled)).child(placeholder)
-                        }),
-                ),
-        )
+        .child(search_rendered)
         // Close all button
         .child(
             div()
@@ -420,9 +390,10 @@ fn render_toolbar(
                 .hover(|s| s.opacity(0.85))
                 .on_any_mouse_down({
                     let entity = cx.entity();
+                    let search = search.clone();
                     move |_: &MouseDownEvent, _window, app| {
+                        search.update(app, |t, _| t.clear());
                         entity.update(app, |this, _| {
-                            this.connections_search_text.clear();
                             this.connections_selected_index = None;
                         });
                         app.refresh_windows();

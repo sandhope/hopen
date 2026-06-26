@@ -4,6 +4,7 @@
 /// Shows a list of Geo resource files with their current download URL,
 /// local file info, and actions to edit the URL or trigger a sync.
 
+use crate::components::text_input::TextInput;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -73,7 +74,7 @@ pub(crate) struct MockResource {
     /// Which Geo resource this is.
     resource_type: ResourceType,
     /// The current download URL (user-customizable).
-    url: String,
+    pub(crate) url: String,
     /// Whether the URL has been modified from the default.
     #[allow(dead_code)]
     url_modified: bool,
@@ -114,8 +115,6 @@ pub struct ResourcesState {
     pub items: Vec<MockResource>,
     /// Which resource index is currently being edited (URL dialog open).
     pub editing_index: Option<usize>,
-    /// The URL text being edited in the dialog.
-    pub edit_url_text: String,
     /// Which resource index is currently syncing (shows spinner).
     pub syncing_index: Option<usize>,
 }
@@ -125,7 +124,6 @@ impl ResourcesState {
         Self {
             items: mock_resources(),
             editing_index: None,
-            edit_url_text: String::new(),
             syncing_index: None,
         }
     }
@@ -168,12 +166,14 @@ pub(super) fn resources_view(
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
     state: &ResourcesState,
+    edit_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let items_len = state.items.len();
     let editing_index = state.editing_index;
     let syncing_index = state.syncing_index;
 
     let empty_label = strings.resources_empty.to_string();
+    let edit_input_clone = edit_input.clone();
 
     div()
         .flex()
@@ -188,13 +188,12 @@ pub(super) fn resources_view(
                 let is_syncing = syncing_index == Some(idx);
 
                 if is_editing {
-                    let edit_text = state.edit_url_text.clone();
                     let resource_type = state
                         .items
                         .get(idx)
                         .map(|r| r.resource_type)
                         .unwrap_or(ResourceType::GeoIP);
-                    render_edit_url_dialog(theme, cx, strings, idx, &edit_text, resource_type)
+                    render_edit_url_dialog(theme, cx, strings, idx, resource_type, &edit_input_clone)
                         .into_any_element()
                 } else {
                     let item = state.items.get(idx).cloned();
@@ -399,7 +398,7 @@ fn render_resource_card(
                         .on_any_mouse_down({
                             let entity = entity_clone.clone();
                             move |_: &MouseDownEvent, _window, app| {
-                                entity.update(app, |this, _| {
+                                entity.update(app, |this, cx| {
                                     let url = this
                                         .resources_state
                                         .items
@@ -407,7 +406,7 @@ fn render_resource_card(
                                         .map(|r| r.url.clone())
                                         .unwrap_or_default();
                                     this.resources_state.editing_index = Some(index);
-                                    this.resources_state.edit_url_text = url;
+                                    this.resources_edit_input.update(cx, |t: &mut TextInput, _| t.set_text(url));
                                 });
                                 app.refresh_windows();
                             }
@@ -473,8 +472,8 @@ fn render_edit_url_dialog(
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
     index: usize,
-    edit_url_text: &str,
     resource_type: ResourceType,
+    edit_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let entity = cx.entity();
 
@@ -488,6 +487,7 @@ fn render_edit_url_dialog(
     let entity_clone = entity.clone();
     let entity_clone2 = entity.clone();
     let entity_clone3 = entity.clone();
+    let edit_rendered = edit_input.update(cx, |t, cx| t.render_plain(theme, cx));
 
     div()
         .flex()
@@ -527,9 +527,9 @@ fn render_edit_url_dialog(
                         .on_any_mouse_down({
                             let entity = entity_clone.clone();
                             move |_: &MouseDownEvent, _window, app| {
-                                entity.update(app, |this, _| {
+                                entity.update(app, |this, cx| {
                                     this.resources_state.editing_index = None;
-                                    this.resources_state.edit_url_text.clear();
+                                    this.resources_edit_input.update(cx, |t: &mut TextInput, _| t.clear());
                                 });
                                 app.refresh_windows();
                             }
@@ -560,23 +560,12 @@ fn render_edit_url_dialog(
                         )
                         .child(
                             div()
-                                .flex()
-                                .items_center()
                                 .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(theme.border))
                                 .bg(rgb(theme.content_bg))
                                 .min_h(px(36.0))
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .px(px(12.0))
-                                        .py(px(8.0))
-                                        .text_size(px(12.0))
-                                        .font_family("monospace")
-                                        .text_color(rgb(theme.text_primary))
-                                        .child(edit_url_text.to_string()),
-                                ),
+                                .child(edit_rendered),
                         ),
                 )
                 // ── Actions ──
@@ -600,9 +589,9 @@ fn render_edit_url_dialog(
                                 .on_any_mouse_down({
                                     let entity = entity.clone();
                                     move |_: &MouseDownEvent, _window, app| {
-                                        entity.update(app, |this, _| {
+                                        entity.update(app, |this, cx| {
                                             let new_url =
-                                                this.resources_state.edit_url_text.clone();
+                                                this.resources_edit_input.read(cx).text().to_string();
                                             if let Some(item) =
                                                 this.resources_state.items.get_mut(index)
                                             {
@@ -610,7 +599,7 @@ fn render_edit_url_dialog(
                                                 item.url_modified = true;
                                             }
                                             this.resources_state.editing_index = None;
-                                            this.resources_state.edit_url_text.clear();
+                                            this.resources_edit_input.update(cx, |t: &mut TextInput, _| t.clear());
                                         });
                                         app.refresh_windows();
                                     }
@@ -635,9 +624,10 @@ fn render_edit_url_dialog(
                                 .on_any_mouse_down({
                                     let entity = entity_clone2.clone();
                                     move |_: &MouseDownEvent, _window, app| {
-                                        entity.update(app, |this, _| {
-                                            this.resources_state.edit_url_text =
-                                                resource_type.default_url().to_string();
+                                        entity.update(app, |this, cx| {
+                                            this.resources_edit_input.update(cx, |t: &mut TextInput, _| {
+                                                t.set_text(resource_type.default_url());
+                                            });
                                         });
                                         app.refresh_windows();
                                     }
@@ -663,9 +653,9 @@ fn render_edit_url_dialog(
                                 .on_any_mouse_down({
                                     let entity = entity_clone3.clone();
                                     move |_: &MouseDownEvent, _window, app| {
-                                        entity.update(app, |this, _| {
+                                        entity.update(app, |this, cx| {
                                             this.resources_state.editing_index = None;
-                                            this.resources_state.edit_url_text.clear();
+                                            this.resources_edit_input.update(cx, |t: &mut TextInput, _| t.clear());
                                         });
                                         app.refresh_windows();
                                     }
