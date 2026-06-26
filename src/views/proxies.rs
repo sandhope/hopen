@@ -1,6 +1,7 @@
 /// Proxies view — proxy group list, node management, speed test, provider list.
 
 use crate::components::text_input::TextInput;
+use crate::state::proxy::ProxyState;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -77,7 +78,9 @@ pub(super) fn proxies_view(
     expanded_map: &std::collections::HashMap<String, bool>,
     search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let groups = build_mock_groups();
+    // ── Real data from core (via bridge) ──
+    let proxy_state = cx.global::<ProxyState>();
+    let groups = build_groups_from_state(&proxy_state);
 
     let search_text = search.read(cx).text().to_string();
     let search_has_text = !search_text.is_empty();
@@ -157,6 +160,66 @@ pub(super) fn proxies_view(
         })
 }
 
+// ─── State → view conversion ────────────────────────────────────────────
+
+/// Convert `ProxyState` data to `MockGroup` structure for rendering.
+/// Returns groups in display order with delays from state.
+fn build_groups_from_state(state: &ProxyState) -> Vec<MockGroup> {
+    let mut result = Vec::new();
+    for gname in &state.group_order {
+        if let Some(group) = state.groups.get(gname) {
+            let vg_type = match group.group_type {
+                crate::state::proxy_models::GroupType::Select => GroupType::Selector,
+                crate::state::proxy_models::GroupType::UrlTest => GroupType::URLTest,
+                crate::state::proxy_models::GroupType::Fallback => GroupType::Fallback,
+                crate::state::proxy_models::GroupType::LoadBalance | crate::state::proxy_models::GroupType::Relay => GroupType::LoadBalance,
+            };
+            let current_idx = group.all.iter().position(|p| {
+                group.now.as_deref() == Some(&p.name)
+            }).unwrap_or(0);
+            let nodes: Vec<MockNode> = group.all.iter().map(|p| {
+                let delay = state.delays.get(&p.name).and_then(|d| d.map(|ms| ms as u64));
+                let ntype = node_type_from_str(&p.proxy_type);
+                MockNode {
+                    name: leak_str(&p.name),
+                    node_type: ntype,
+                    delay,
+                }
+            }).collect();
+            result.push(MockGroup {
+                name: leak_str(gname),
+                group_type: vg_type,
+                expanded: false,
+                current_idx,
+                nodes,
+            });
+        }
+    }
+    result
+}
+
+fn node_type_from_str(s: &str) -> NodeType {
+    match s.to_lowercase().as_str() {
+        "ss" | "shadowsocks" => NodeType::SS,
+        "vmess" => NodeType::VMess,
+        "trojan" => NodeType::Trojan,
+        "hysteria2" | "hysteria" => NodeType::Hysteria2,
+        "socks5" | "socks" => NodeType::Socks5,
+        "http" | "https" => NodeType::HTTP,
+        "wireguard" => NodeType::WireGuard,
+        "tuic" => NodeType::TUIC,
+        "ssh" => NodeType::SSH,
+        "direct" => NodeType::Direct,
+        "reject" | "block" => NodeType::Reject,
+        _ => NodeType::VMess,
+    }
+}
+
+/// Leak a string to get a &'static str (safe because these live for the app lifetime).
+fn leak_str(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
+}
+
 // ─── Mock data ────────────────────────────────────────────────────────
 
 struct MockGroup {
@@ -173,69 +236,7 @@ struct MockNode {
     delay: Option<u64>,
 }
 
-fn build_mock_groups() -> Vec<MockGroup> {
-    vec![
-        MockGroup {
-            name: "GLOBAL",
-            group_type: GroupType::Selector,
-            expanded: true,
-            current_idx: 0,
-            nodes: vec![
-                MockNode { name: "\u{1F1ED}\u{1F1F0} HongKong 01", node_type: NodeType::SS, delay: Some(45) },
-                MockNode { name: "\u{1F1F8}\u{1F1EC} Singapore 01", node_type: NodeType::VMess, delay: Some(88) },
-                MockNode { name: "\u{1F1EF}\u{1F1F5} Tokyo 01", node_type: NodeType::Trojan, delay: Some(120) },
-            ],
-        },
-        MockGroup {
-            name: "Auto Select",
-            group_type: GroupType::URLTest,
-            expanded: false,
-            current_idx: 0,
-            nodes: vec![
-                MockNode { name: "\u{1F1ED}\u{1F1F0} HongKong 02", node_type: NodeType::SS, delay: Some(45) },
-                MockNode { name: "\u{1F1F8}\u{1F1EC} Singapore 02", node_type: NodeType::Hysteria2, delay: Some(52) },
-                MockNode { name: "\u{1F1EF}\u{1F1F5} Tokyo 02", node_type: NodeType::VMess, delay: Some(78) },
-                MockNode { name: "\u{1F1FA}\u{1F1F8} Los Angeles 01", node_type: NodeType::TUIC, delay: Some(160) },
-                MockNode { name: "\u{1F1E9}\u{1F1EA} Frankfurt 01", node_type: NodeType::WireGuard, delay: Some(210) },
-            ],
-        },
-        MockGroup {
-            name: "Fallback",
-            group_type: GroupType::Fallback,
-            expanded: false,
-            current_idx: 0,
-            nodes: vec![
-                MockNode { name: "\u{1F1ED}\u{1F1F0} HongKong 03", node_type: NodeType::SSH, delay: Some(65) },
-                MockNode { name: "\u{1F1F8}\u{1F1EC} Singapore 03", node_type: NodeType::Socks5, delay: Some(98) },
-                MockNode { name: "\u{1F1EF}\u{1F1F5} Tokyo 03", node_type: NodeType::HTTP, delay: Some(135) },
-            ],
-        },
-        MockGroup {
-            name: "Streaming",
-            group_type: GroupType::Selector,
-            expanded: false,
-            current_idx: 0,
-            nodes: vec![
-                MockNode { name: "\u{1F1FA}\u{1F1F8} Netflix US", node_type: NodeType::VMess, delay: Some(170) },
-                MockNode { name: "\u{1F1ED}\u{1F1F0} Netflix HK", node_type: NodeType::Trojan, delay: Some(55) },
-                MockNode { name: "Direct", node_type: NodeType::Direct, delay: None },
-            ],
-        },
-    ]
-}
 
-fn build_mock_providers() -> Vec<MockProvider> {
-    vec![
-        MockProvider { name: "Provider A (Subscription)", node_count: 8, updated: "2m ago" },
-        MockProvider { name: "Provider B (Local)", node_count: 12, updated: "1h ago" },
-    ]
-}
-
-struct MockProvider {
-    name: &'static str,
-    node_count: usize,
-    updated: &'static str,
-}
 
 // ─── Proxy group section ──────────────────────────────────────────────
 
@@ -409,48 +410,21 @@ fn proxy_node_row(
 fn providers_section(
     theme: &Theme,
     strings: &I18nStrings,
-    cx: &mut Context<crate::app::AppView>,
+    _cx: &mut Context<crate::app::AppView>,
 ) -> impl IntoElement + use<> {
-    let providers = build_mock_providers();
-
     div()
         .flex()
         .flex_col()
         .pt(px(16.0))
         .gap(px(8.0))
         .child(div().text_size(px(14.0)).font_weight(FontWeight::SEMIBOLD).text_color(rgb(theme.text_secondary)).px(px(4.0)).child(strings.proxy_providers))
-        .children({
-            let mut provider_views = Vec::new();
-            for (pi, p) in providers.iter().enumerate() {
-                let name = p.name.to_string();
-                let ncount = p.node_count;
-                let upd = p.updated.to_string();
-                let pn = name.clone();
-
-                provider_views.push(
-                    div()
-                        .id(("proxy-provider-row", pi))
-                        .flex().items_center().justify_between().px(px(16.0)).py(px(12.0))
-                        .rounded(px(CARD_RADIUS)).bg(rgb(theme.surface)).border_1().border_color(rgb(theme.border_light))
-                        .hover(|s| s.bg(rgb(theme.surface_variant))).cursor_pointer()
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            let _ = this; let _ = &pn; cx.notify();
-                        }))
-                        .child(
-                            div().flex().flex_col().gap(px(2.0))
-                                .child(div().text_size(px(13.0)).font_weight(FontWeight::MEDIUM).text_color(rgb(theme.text_primary)).child(name))
-                                .child(
-                                    div().flex().items_center().gap(px(6.0))
-                                        .child(div().text_size(px(11.0)).text_color(rgb(theme.text_disabled)).child(format!("{} {}", ncount, strings.proxy_provider_nodes)))
-                                        .child(div().w(px(3.0)).h(px(3.0)).rounded(px(1.5)).bg(rgb(theme.text_disabled)))
-                                        .child(div().text_size(px(11.0)).text_color(rgb(theme.text_disabled)).child(upd)),
-                                ),
-                        )
-                        .child(div().text_size(px(14.0)).text_color(rgb(theme.text_disabled)).child("\u{203A}")),
-                );
-            }
-            provider_views
-        })
+        .child(
+            div()
+                .flex().items_center().justify_center().px(px(16.0)).py(px(24.0))
+                .rounded(px(CARD_RADIUS)).bg(rgb(theme.surface)).border_1().border_color(rgb(theme.border_light))
+                .text_size(px(12.0)).text_color(rgb(theme.text_disabled))
+                .child(strings.proxy_no_providers),
+        )
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ use gpui::*;
 
 use app::AppView;
 use assets::Assets;
+use core::bridge;
 use core::manager::CoreManager;
 use i18n::I18nManager;
 use navigation::Page;
@@ -174,13 +175,20 @@ fn main() {
         cx.set_global(db);
 
         // Initialize core engine manager (IPC + Go process management)
-        cx.set_global(CoreManager::new());
+        let core_mgr = CoreManager::new();
+        cx.set_global(core_mgr);
 
         // Initialize domain state types
         cx.set_global(ConfigState::default());
         cx.set_global(ProxyState::default());
         cx.set_global(ConnectionState::default());
         cx.set_global(LogState::default());
+
+        // Start the bridge: creates CoreEventListener + thread-safe buffer
+        let (bridge_listener, bridge_buffer) = bridge::start_bridge();
+        if let Some(mgr) = cx.try_global::<CoreManager>() {
+            mgr.add_listener(bridge_listener);
+        }
 
         // Initialize i18n — auto-detect system language, prefer persisted
         let lang_id = saved_lang.unwrap_or_else(|| i18n::detect_system_language_id());
@@ -236,7 +244,11 @@ fn main() {
             if core_running {
                 if let Some(manager) = cx.try_global::<CoreManager>() {
                     match manager.start() {
-                        Ok(()) => log::info!("Core engine started"),
+                        Ok(()) => {
+                            log::info!("Core engine started");
+                            // Initialize clash core + begin data sync
+                            bridge::on_core_started(cx);
+                        }
                         Err(e) => {
                             log::error!("Failed to start core: {e}");
                             // Revert state
@@ -250,6 +262,7 @@ fn main() {
                 if let Some(manager) = cx.try_global::<CoreManager>() {
                     manager.stop();
                 }
+                bridge::on_core_stopped(cx);
             }
             cx.refresh_windows();
         });
@@ -323,7 +336,8 @@ fn main() {
             cx.refresh_windows();
         });
 
-        // ── System tray event poller ──────────────────────────
+        // ── System tray + bridge data poller ───────────────────
+        let poll_buffer = bridge_buffer.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             loop {
                 cx.background_executor()
@@ -365,6 +379,11 @@ fn main() {
                         }
                     }
                 }
+                // Drain bridge push events + poll core data (proxies/connections/traffic)
+                let _ = cx.update(|cx| {
+                    bridge::process_pending_events(&poll_buffer, cx);
+                    bridge::poll_all(cx);
+                });
             }
         });
 

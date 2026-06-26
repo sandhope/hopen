@@ -1,6 +1,7 @@
 /// Requests view — real-time request log, detail panel, search/filter, clear logs.
 
 use crate::components::text_input::TextInput;
+use crate::state::connection::ConnectionState;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -34,214 +35,6 @@ pub enum RuleType {
     Proxy,
 }
 
-// ─── Mock data ─────────────────────────────────────────────────────────
-
-fn build_mock_requests() -> Vec<MockRequest> {
-    vec![
-        MockRequest {
-            time: "14:32:05",
-            domain: "google.com",
-            url: "https://www.google.com/search?q=rust+gpui",
-            method: "GET",
-            status: 200,
-            proxy_chain: "GLOBAL >> HK 01",
-            delay_ms: Some(45),
-            rule: "google.com",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52341,
-            dest_ip: "142.250.80.46",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "www.google.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-                ("Accept", "text/html,application/xhtml+xml"),
-                ("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8"),
-            ],
-        },
-        MockRequest {
-            time: "14:32:05",
-            domain: "github.com",
-            url: "https://api.github.com/repos/zed-industries/zed",
-            method: "GET",
-            status: 200,
-            proxy_chain: "GLOBAL >> SG 01",
-            delay_ms: Some(88),
-            rule: "PROXY",
-            rule_type: RuleType::Proxy,
-            source_ip: "192.168.1.100",
-            source_port: 52342,
-            dest_ip: "140.82.121.3",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "api.github.com"),
-                ("User-Agent", "curl/8.7.1"),
-                ("Accept", "application/vnd.github+json"),
-            ],
-        },
-        MockRequest {
-            time: "14:32:04",
-            domain: "baidu.com",
-            url: "https://www.baidu.com/",
-            method: "GET",
-            status: 302,
-            proxy_chain: "DIRECT",
-            delay_ms: Some(2),
-            rule: "DIRECT",
-            rule_type: RuleType::Direct,
-            source_ip: "192.168.1.100",
-            source_port: 52340,
-            dest_ip: "110.242.68.66",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "www.baidu.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-                ("Accept", "text/html"),
-            ],
-        },
-        MockRequest {
-            time: "14:32:03",
-            domain: "youtube.com",
-            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            method: "GET",
-            status: 200,
-            proxy_chain: "Streaming >> US 01",
-            delay_ms: Some(170),
-            rule: "youtube.com",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52339,
-            dest_ip: "142.250.80.46",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "www.youtube.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-                ("Accept", "text/html"),
-                ("Cookie", "PREF=...; VISITOR_INFO1_LIVE=..."),
-            ],
-        },
-        MockRequest {
-            time: "14:32:02",
-            domain: "twitter.com",
-            url: "https://twitter.com/home",
-            method: "GET",
-            status: 200,
-            proxy_chain: "GLOBAL >> HK 01",
-            delay_ms: Some(55),
-            rule: "twitter.com",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52338,
-            dest_ip: "104.244.42.1",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "twitter.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-                ("Accept", "text/html"),
-            ],
-        },
-        MockRequest {
-            time: "14:32:01",
-            domain: "localhost",
-            url: "http://localhost:9090/configs",
-            method: "POST",
-            status: 204,
-            proxy_chain: "DIRECT",
-            delay_ms: Some(0),
-            rule: "DIRECT",
-            rule_type: RuleType::Direct,
-            source_ip: "127.0.0.1",
-            source_port: 52337,
-            dest_ip: "127.0.0.1",
-            dest_port: 9090,
-            headers: vec![
-                ("Host", "localhost:9090"),
-                ("User-Agent", "clash-verge/1.0"),
-                ("Content-Type", "application/json"),
-            ],
-        },
-        MockRequest {
-            time: "14:31:58",
-            domain: "reddit.com",
-            url: "https://www.reddit.com/r/rust/.json",
-            method: "GET",
-            status: 200,
-            proxy_chain: "GLOBAL >> JP 01",
-            delay_ms: Some(135),
-            rule: "geosite:reddit",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52336,
-            dest_ip: "151.101.1.140",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "www.reddit.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-                ("Accept", "application/json"),
-            ],
-        },
-        MockRequest {
-            time: "14:31:55",
-            domain: "clients3.google.com",
-            url: "https://clients3.google.com/generate_204",
-            method: "GET",
-            status: 204,
-            proxy_chain: "GLOBAL >> HK 01",
-            delay_ms: Some(42),
-            rule: "google.com",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52335,
-            dest_ip: "142.250.80.46",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "clients3.google.com"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-            ],
-        },
-        MockRequest {
-            time: "14:31:50",
-            domain: "openai.com",
-            url: "https://api.openai.com/v1/chat/completions",
-            method: "POST",
-            status: 200,
-            proxy_chain: "GLOBAL >> US 01",
-            delay_ms: Some(320),
-            rule: "openai.com",
-            rule_type: RuleType::Matched,
-            source_ip: "192.168.1.100",
-            source_port: 52334,
-            dest_ip: "104.18.37.228",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "api.openai.com"),
-                ("User-Agent", "OpenAI/NodeJS/4.0"),
-                ("Content-Type", "application/json"),
-                ("Authorization", "Bearer sk-****"),
-            ],
-        },
-        MockRequest {
-            time: "14:31:48",
-            domain: "akamaihd.net",
-            url: "https://akamaihd.net/video/stream/segment-001.ts",
-            method: "GET",
-            status: 200,
-            proxy_chain: "Streaming >> US 01",
-            delay_ms: Some(185),
-            rule: "PROXY",
-            rule_type: RuleType::Proxy,
-            source_ip: "192.168.1.100",
-            source_port: 52333,
-            dest_ip: "23.212.6.142",
-            dest_port: 443,
-            headers: vec![
-                ("Host", "akamaihd.net"),
-                ("User-Agent", "Mozilla/5.0 (Windows NT 10.0) Chrome/125.0"),
-            ],
-        },
-    ]
-}
-
 // ─── Main view ─────────────────────────────────────────────────────────
 
 pub(super) fn requests_view(
@@ -251,7 +44,24 @@ pub(super) fn requests_view(
     selected_index: Option<usize>,
     search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let requests = build_mock_requests();
+    // ── Real data from core (via bridge) ──
+    let conn_state = cx.global::<ConnectionState>();
+    let requests: Vec<MockRequest> = conn_state.request_logs.iter().map(|r| MockRequest {
+            time: Box::leak(r.time.clone().into_boxed_str()),
+            domain: Box::leak(r.host.clone().into_boxed_str()),
+            url: Box::leak(r.info.clone().unwrap_or_default().into_boxed_str()),
+            method: "—",
+            status: 0,
+            proxy_chain: Box::leak(r.proxy.clone().into_boxed_str()),
+            delay_ms: if r.delay > 0 { Some(r.delay as u64) } else { None },
+            rule: Box::leak(r.rule.clone().into_boxed_str()),
+            rule_type: if r.proxy == "DIRECT" { RuleType::Direct } else { RuleType::Matched },
+            source_ip: "—",
+            source_port: 0,
+            dest_ip: "—",
+            dest_port: 0,
+            headers: Vec::new(),
+    }).collect();
 
     // Filter by search text
     let search_text = search.read(cx).text().to_string();

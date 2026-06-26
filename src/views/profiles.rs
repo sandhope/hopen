@@ -8,6 +8,7 @@
 /// - Detail panel: tabbed (Info / YAML Preview / Overwrite)
 
 use crate::components::text_input::TextInput;
+use crate::state::config::ConfigState;
 use gpui::prelude::*;
 use gpui::*;
 
@@ -28,7 +29,7 @@ pub struct MockProfile {
     pub profile_type: ProfileType,
     pub url: &'static str,
     pub updated: &'static str,
-    pub yaml_content: &'static str,
+    pub yaml_content: String,
 }
 
 // ─── Profile detail tabs ───────────────────────────────────────────────
@@ -54,41 +55,6 @@ enum CustomCategory {
     Proxies,
     Providers,
     Rules,
-}
-
-// ─── Mock data ─────────────────────────────────────────────────────────
-
-fn build_mock_profiles() -> Vec<MockProfile> {
-    vec![
-        MockProfile {
-            name: "Default Config",
-            profile_type: ProfileType::Local,
-            url: "",
-            updated: "2025-06-20 14:30",
-            yaml_content: "port: 7890\nsocks-port: 7891\nredir-port: 7892\nallow-lan: true\nmode: Rule\nlog-level: info\n\nproxies:\n  - name: \"HK 01\"\n    type: ss\n    server: hk.example.com\n    port: 8388\n\nproxy-groups:\n  - name: GLOBAL\n    type: select\n    proxies:\n      - \"HK 01\"\n      - DIRECT\n\nrules:\n  - DOMAIN-SUFFIX,google.com,GLOBAL\n  - GEOIP,CN,DIRECT\n  - MATCH,GLOBAL\n",
-        },
-        MockProfile {
-            name: "My VPN Config",
-            profile_type: ProfileType::Subscription,
-            url: "https://sub.example.com/vpn?token=abc123",
-            updated: "2025-06-25 08:15",
-            yaml_content: "# Subscription Profile: My VPN Config\n# URL: https://sub.example.com/vpn?token=abc123\n# Last updated: 2025-06-25 08:15\n\nproxies:\n  - name: \"US 01\"\n    type: vmess\n    server: us.vpn.example.com\n    port: 443\n\n  - name: \"JP 01\"\n    type: vmess\n    server: jp.vpn.example.com\n    port: 443\n\nproxy-groups:\n  - name: PROXY\n    type: select\n    proxies:\n      - \"US 01\"\n      - \"JP 01\"\n\nrules:\n  - DOMAIN-SUFFIX,google.com,PROXY\n  - MATCH,DIRECT\n",
-        },
-        MockProfile {
-            name: "Work Proxy",
-            profile_type: ProfileType::Subscription,
-            url: "https://corp.example.com/proxy/clash.yaml",
-            updated: "2025-06-24 22:00",
-            yaml_content: "# Corporate Proxy Configuration\n# URL: https://corp.example.com/proxy/clash.yaml\n\nproxies:\n  - name: \"Office VPN\"\n    type: trojan\n    server: office.corp.example.com\n    port: 443\n\nproxy-groups:\n  - name: WORK\n    type: select\n    proxies:\n      - \"Office VPN\"\n\nrules:\n  - DOMAIN-SUFFIX,corp.example.com,WORK\n  - MATCH,DIRECT\n",
-        },
-        MockProfile {
-            name: "Direct Only",
-            profile_type: ProfileType::Local,
-            url: "",
-            updated: "2025-06-18 10:00",
-            yaml_content: "port: 7890\nsocks-port: 7891\nallow-lan: false\nmode: Global\nlog-level: warning\n\nproxies: []\nproxy-groups: []\nrules:\n  - MATCH,DIRECT\n",
-        },
-    ]
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
@@ -119,7 +85,18 @@ pub(super) fn profiles_view(
     search: &Entity<TextInput>,
     url_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let profiles = build_mock_profiles();
+    // ── Real data from config state ──
+    let config_state = cx.global::<ConfigState>();
+    let profiles: Vec<MockProfile> = config_state.profiles.iter().map(|p| MockProfile {
+        name: Box::leak(p.name.clone().into_boxed_str()),
+        profile_type: match p.profile_type {
+            crate::state::config::ProfileType::File => ProfileType::Local,
+            crate::state::config::ProfileType::Url => ProfileType::Subscription,
+        },
+        url: Box::leak(p.path.clone().into_boxed_str()),
+        updated: Box::leak(p.updated_at.map_or_else(|| "—".to_string(), |t| chrono::DateTime::from_timestamp(t, 0).map_or("—".to_string(), |dt| dt.format("%Y-%m-%d %H:%M").to_string())).into_boxed_str()),
+        yaml_content: p.config_content.clone().unwrap_or_else(|| "# Config content not yet loaded\n".to_string()),
+    }).collect();
 
     // Filter by search text
     let search_text = search.read(cx).text().to_string();
@@ -361,10 +338,16 @@ fn render_add_panel(
                                 .hover(|s| s.opacity(0.85))
                                 .on_any_mouse_down({
                                     let entity = cx.entity();
+                                    let url_input = url_input.clone();
                                     move |_: &MouseDownEvent, _window, app| {
+                                        let url = url_input.read(app).text().to_string();
+                                        let trimmed = url.trim().to_string();
                                         entity.update(app, |this, _| {
                                             this.profiles_show_add = false;
                                         });
+                                        if !trimmed.is_empty() {
+                                            let _ = crate::core::bridge::add_subscription(&trimmed, app);
+                                        }
                                     }
                                 })
                                 .child(save_label),
@@ -455,7 +438,8 @@ fn render_profile_card(
     let delete_label = strings.profiles_delete.to_string();
 
     let is_sub = prof.profile_type == ProfileType::Subscription;
-    let url = prof.url.to_string();
+    let display_url = prof.url.to_string();
+    let url = display_url.clone();
 
     div()
         .flex()
@@ -516,7 +500,7 @@ fn render_profile_card(
                                     .text_color(rgb(theme.text_disabled))
                                     .overflow_hidden()
                                     .text_ellipsis()
-                                    .child(url),
+                                    .child(display_url),
                             )
                         })
                         .child(
@@ -533,6 +517,7 @@ fn render_profile_card(
                 // Update button (subscription only)
                 .when(is_sub, |s| {
                     let label = update_label.clone();
+                    let sub_url = url.clone();
                     s.child(
                         div()
                             .flex()
@@ -552,10 +537,13 @@ fn render_profile_card(
                             .hover(|s| s.opacity(0.8))
                             .on_any_mouse_down({
                                 let entity = cx.entity();
+                                let sub_url = sub_url.clone();
                                 move |_: &MouseDownEvent, _window, app| {
-                                    entity.update(app, |_this, _| {
-                                        // Placeholder: trigger update
+                                    let path = sub_url.clone();
+                                    entity.update(app, |this, _| {
+                                        this.profiles_selected_index = Some(orig_index);
                                     });
+                                    crate::core::bridge::update_subscription(&path, app);
                                 }
                             })
                             .child(label),
@@ -580,6 +568,7 @@ fn render_profile_card(
                             move |_: &MouseDownEvent, _window, app| {
                                 entity.update(app, |this, _| {
                                     this.profiles_selected_index = Some(orig_index);
+                                    this.profiles_detail_tab = Some(DetailTab::Yaml);
                                 });
                             }
                         })
@@ -605,10 +594,13 @@ fn render_profile_card(
                         .hover(|s| s.opacity(0.8))
                         .on_any_mouse_down({
                             let entity = cx.entity();
+                            let del_url = url.clone();
                             move |_: &MouseDownEvent, _window, app| {
-                                entity.update(app, |this, _| {
-                                    this.profiles_selected_index = None;
+                                let path = del_url.clone();
+                                entity.update(app, |_this, _| {
+                                    // handled by bridge helper
                                 });
+                                crate::core::bridge::delete_profile(&path, orig_index, app);
                             }
                         })
                         .child(delete_label),

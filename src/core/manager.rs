@@ -152,6 +152,18 @@ impl CoreManager {
     pub fn close_all_connections(&self) -> Result<ActionResult, String> {
         self.service.close_all_connections()
     }
+
+    pub fn get_current_profile_name(&self) -> Result<ActionResult, String> {
+        self.service.get_current_profile_name()
+    }
+
+    pub fn setup_config(&self, path: &str) -> Result<ActionResult, String> {
+        self.service.setup_config(path)
+    }
+
+    pub fn delete_file(&self, path: &str) -> Result<ActionResult, String> {
+        self.service.delete_file(path)
+    }
 }
 
 impl Global for CoreManager {}

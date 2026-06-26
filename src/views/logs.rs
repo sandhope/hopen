@@ -105,51 +105,6 @@ impl LogLevelFilter {
     ];
 }
 
-// ─── Mock data ─────────────────────────────────────────────────────────
-
-fn build_mock_logs() -> Vec<LogEntry> {
-    vec![
-        LogEntry { time: "14:30:01", level: LogLevel::Info,  message: "[Core] Clash core started (v1.18.0)" },
-        LogEntry { time: "14:30:01", level: LogLevel::Info,  message: "[Config] loading configuration from /etc/clash/config.yaml" },
-        LogEntry { time: "14:30:02", level: LogLevel::Debug, message: "[DNS] resolver initialized — primary: 223.5.5.5" },
-        LogEntry { time: "14:30:02", level: LogLevel::Info,  message: "[Rule] loaded 342 rules from 'rule-providers'" },
-        LogEntry { time: "14:30:03", level: LogLevel::Info,  message: "[Proxy] group 'GLOBAL' initialized with 5 nodes" },
-        LogEntry { time: "14:30:03", level: LogLevel::Info,  message: "[Proxy] group 'HK' initialized with 8 nodes" },
-        LogEntry { time: "14:30:03", level: LogLevel::Debug, message: "[TUN] interface created: utun4" },
-        LogEntry { time: "14:30:04", level: LogLevel::Info,  message: "[Server] HTTP proxy listening on 127.0.0.1:7890" },
-        LogEntry { time: "14:30:04", level: LogLevel::Info,  message: "[Server] SOCKS5 proxy listening on 127.0.0.1:7891" },
-        LogEntry { time: "14:30:04", level: LogLevel::Info,  message: "[Server] Mixed proxy listening on 127.0.0.1:7892" },
-        LogEntry { time: "14:30:05", level: LogLevel::Debug, message: "[DNS] resolved google.com → 142.250.80.46 (rule: proxy)" },
-        LogEntry { time: "14:30:05", level: LogLevel::Debug, message: "[DNS] resolved github.com → 140.82.113.3 (rule: proxy)" },
-        LogEntry { time: "14:30:05", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → google.com:443 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:06", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → github.com:443 via HK 02 [MATCH,rule]" },
-        LogEntry { time: "14:30:07", level: LogLevel::Debug, message: "[Proxy] HK 01 latency measured: 45ms" },
-        LogEntry { time: "14:30:07", level: LogLevel::Debug, message: "[Proxy] HK 02 latency measured: 62ms" },
-        LogEntry { time: "14:30:08", level: LogLevel::Warning, message: "[DNS] upstream timeout for domain 'api.example.com', retrying..." },
-        LogEntry { time: "14:30:09", level: LogLevel::Info,  message: "[Connection] 192.168.1.101 → baidu.com:443 via DIRECT [DOMAIN,rule]" },
-        LogEntry { time: "14:30:10", level: LogLevel::Error, message: "[Proxy] HK 03 connection refused (ECONNREFUSED), falling back to HK 01" },
-        LogEntry { time: "14:30:10", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → twitter.com:443 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:11", level: LogLevel::Info,  message: "[Connection] 192.168.1.101 → bing.com:443 via DIRECT [DOMAIN,rule]" },
-        LogEntry { time: "14:30:12", level: LogLevel::Debug, message: "[Sniffer] detected TLS handshake for youtube.com" },
-        LogEntry { time: "14:30:12", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → youtube.com:443 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:13", level: LogLevel::Warning, message: "[Rule] no matching rule found for 'unknown-service.local', using MATCH" },
-        LogEntry { time: "14:30:14", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → unknown-service.local:8080 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:15", level: LogLevel::Debug, message: "[Cron] auto-updating proxy provider 'free-nodes'" },
-        LogEntry { time: "14:30:15", level: LogLevel::Info,  message: "[Provider] free-nodes updated successfully (25 nodes)" },
-        LogEntry { time: "14:30:16", level: LogLevel::Error, message: "[Provider] geoip.dat download failed — HTTP 503 (Service Unavailable)" },
-        LogEntry { time: "14:30:17", level: LogLevel::Warning, message: "[TUN] packet dropped (invalid checksum) from 192.168.1.1" },
-        LogEntry { time: "14:30:18", level: LogLevel::Info,  message: "[Connection] 192.168.1.101 → zhihu.com:443 via DIRECT [DOMAIN,rule]" },
-        LogEntry { time: "14:30:19", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → openai.com:443 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:20", level: LogLevel::Debug, message: "[DNS] cache hit for github.com (TTL: 287s remaining)" },
-        LogEntry { time: "14:30:20", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → slack.com:443 via HK 01 [MATCH,rule]" },
-        LogEntry { time: "14:30:21", level: LogLevel::Debug, message: "[Proxy] HK 01 connection pool: 12 active, 8 idle" },
-        LogEntry { time: "14:30:22", level: LogLevel::Info,  message: "[Connection] 192.168.1.100 → discord.com:443 via HK 02 [MATCH,rule]" },
-        LogEntry { time: "14:30:23", level: LogLevel::Error, message: "[Connection] 192.168.1.101 → api.example.com:443 timeout after 30s (DIRECT)" },
-        LogEntry { time: "14:30:24", level: LogLevel::Debug, message: "[Config] hot-reload triggered — `config.yaml` changed on disk" },
-        LogEntry { time: "14:30:24", level: LogLevel::Info,  message: "[Config] reloaded successfully (342 rules, 3 proxy groups)" },
-    ]
-}
-
 // ─── Main view ─────────────────────────────────────────────────────────
 
 pub(super) fn logs_view(
@@ -159,7 +114,19 @@ pub(super) fn logs_view(
     filter_level: LogLevelFilter,
     search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let logs = build_mock_logs();
+    // ── Real data from core (via bridge) ──
+    let log_state = cx.global::<crate::state::log::LogState>();
+    let logs: Vec<LogEntry> = log_state.entries.iter().map(|e| LogEntry {
+            time: Box::leak(e.time.clone().into_boxed_str()),
+            level: match e.level {
+                crate::state::log::LogLevel::Debug => LogLevel::Debug,
+                crate::state::log::LogLevel::Info => LogLevel::Info,
+                crate::state::log::LogLevel::Warning => LogLevel::Warning,
+                crate::state::log::LogLevel::Error => LogLevel::Error,
+                crate::state::log::LogLevel::Silent => LogLevel::Debug,
+            },
+            message: Box::leak(e.payload.clone().into_boxed_str()),
+    }).collect();
 
     // Filter by level and search text
     let st = search.read(cx).text().to_string();
@@ -332,6 +299,9 @@ fn render_toolbar(
                 .hover(|s| s.opacity(0.85))
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.logs_filter_level = LogLevelFilter::All;
+                    cx.update_global::<crate::state::log::LogState, _>(|state, _cx| {
+                        state.clear();
+                    });
                     cx.notify();
                 }))
                 .child(

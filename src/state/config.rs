@@ -15,7 +15,11 @@ pub struct ConfigProfile {
     /// Last update timestamp (unix seconds).
     pub updated_at: Option<i64>,
     /// Subscription info (upload/download/total bytes).
+    #[serde(skip)]
     pub subscription_info: Option<SubscriptionInfo>,
+    /// Fetched config YAML content (lazy-loaded from core).
+    #[serde(skip)]
+    pub config_content: Option<String>,
 }
 
 // ── ProfileType ───────────────────────────────────────────────────

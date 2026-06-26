@@ -354,6 +354,14 @@ impl CoreService {
     pub fn delete_file(&self, path: &str) -> Result<ActionResult, String> {
         self.invoke(ActionMethod::DeleteFile, serde_json::Value::String(path.into()))
     }
+
+    pub fn get_current_profile_name(&self) -> Result<ActionResult, String> {
+        self.invoke(ActionMethod::GetCurrentProfileName, serde_json::Value::Null)
+    }
+
+    pub fn setup_config(&self, path: &str) -> Result<ActionResult, String> {
+        self.invoke(ActionMethod::SetupConfig, serde_json::json!({"path": path}))
+    }
 }
 
 impl Drop for CoreService {
