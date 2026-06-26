@@ -46,7 +46,14 @@ pub fn render_sidebar(
         .bg(rgb(theme.border_light));
 
     // ── Navigation items ───────────────────────────────────────
-    let mut nav_items = div().flex().flex_col().gap(px(2.0)).px(px(8.0));
+    let mut nav_items = div()
+        .id("sidebar-nav")
+        .flex()
+        .flex_col()
+        .flex_1()
+        .overflow_y_scroll()
+        .gap(px(2.0))
+        .px(px(8.0));
 
     for page in Page::ALL {
         let is_active = *page == current_page;
@@ -101,9 +108,6 @@ pub fn render_sidebar(
         );
     }
 
-    // ── Spacer ─────────────────────────────────────────────────
-    let spacer = div().flex_1();
-
     // ── Sidebar container ──────────────────────────────────────
     div()
         .flex()
@@ -116,5 +120,4 @@ pub fn render_sidebar(
         .child(logo)
         .child(divider)
         .child(nav_items)
-        .child(spacer)
 }

@@ -96,7 +96,14 @@ pub fn render_page(
         .size_full()
         .overflow_y_hidden()
         .child(header_elem)
-        .child(content_elem)
+        .child(
+            div()
+                .id("page-content-scroll")
+                .flex().flex_col()
+                .flex_1()
+                .overflow_y_scroll()
+                .child(content_elem)
+        )
 }
 
 /// Standard page title header (used by all non-sub pages).

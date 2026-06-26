@@ -182,7 +182,7 @@ pub(super) fn logs_view(
     div()
         .flex()
         .flex_col()
-        .size_full()
+        .w_full()
         .gap(px(8.0))
         .px(px(24.0))
         .py(px(8.0))
@@ -385,12 +385,10 @@ fn render_log_table(
     div()
         .flex()
         .flex_col()
-        .flex_1()
         .rounded(px(CARD_RADIUS))
         .bg(rgb(theme.surface))
         .border_1()
         .border_color(rgb(theme.border_light))
-        .overflow_hidden()
         // ── Table header ──────────────────────────
         .child(
             div()
@@ -425,10 +423,10 @@ fn render_log_table(
         .when(!empty, |s| {
             s.child(
                 div()
+                    .id("log-table-body")
                     .flex()
                     .flex_col()
-                    .flex_1()
-                    .overflow_hidden()
+                    .overflow_y_scroll()
                     .children(
                         filtered
                             .iter()
