@@ -341,6 +341,7 @@ pub(super) fn connections_view(
                                         this.connections_search_text.clear();
                                         this.connections_selected_index = None;
                                     });
+                                    app.refresh_windows();
                                 }
                             })
                             .child("Clear"),
@@ -424,6 +425,7 @@ fn render_toolbar(
                             this.connections_search_text.clear();
                             this.connections_selected_index = None;
                         });
+                        app.refresh_windows();
                     }
                 })
                 .child(
@@ -578,6 +580,7 @@ fn render_connection_row(
                 entity.update(app, |this, _| {
                     this.connections_selected_index = Some(orig_index);
                 });
+                app.refresh_windows();
             }
         })
         // Time
@@ -691,6 +694,7 @@ fn render_connection_row(
                                 entity.update(app, |this, _| {
                                     this.connections_selected_index = None;
                                 });
+                                app.refresh_windows();
                             }
                         })
                         .child("\u{2716}"),
@@ -776,6 +780,7 @@ fn render_detail_panel(
                                 entity.update(app, |this, _| {
                                     this.connections_selected_index = None;
                                 });
+                                app.refresh_windows();
                             }
                         })
                         .child(close_label),

@@ -409,6 +409,7 @@ fn render_resource_card(
                                     this.resources_state.editing_index = Some(index);
                                     this.resources_state.edit_url_text = url;
                                 });
+                                app.refresh_windows();
                             }
                         })
                         .child(edit_label),
@@ -452,6 +453,7 @@ fn render_resource_card(
                                         this.resources_state.syncing_index = Some(index);
                                     }
                                 });
+                                app.refresh_windows();
                             }
                         })
                         .child(if is_syncing {
@@ -529,6 +531,7 @@ fn render_edit_url_dialog(
                                     this.resources_state.editing_index = None;
                                     this.resources_state.edit_url_text.clear();
                                 });
+                                app.refresh_windows();
                             }
                         })
                         .child(
@@ -609,6 +612,7 @@ fn render_edit_url_dialog(
                                             this.resources_state.editing_index = None;
                                             this.resources_state.edit_url_text.clear();
                                         });
+                                        app.refresh_windows();
                                     }
                                 })
                                 .child(save_label),
@@ -635,6 +639,7 @@ fn render_edit_url_dialog(
                                             this.resources_state.edit_url_text =
                                                 resource_type.default_url().to_string();
                                         });
+                                        app.refresh_windows();
                                     }
                                 })
                                 .child(reset_label),
@@ -662,6 +667,7 @@ fn render_edit_url_dialog(
                                             this.resources_state.editing_index = None;
                                             this.resources_state.edit_url_text.clear();
                                         });
+                                        app.refresh_windows();
                                     }
                                 })
                                 .child(cancel_label),

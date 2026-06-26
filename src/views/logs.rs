@@ -298,6 +298,7 @@ fn render_toolbar(
                                 entity.update(app, |this, _| {
                                     this.logs_filter_level = filter;
                                 });
+                                app.refresh_windows();
                             })
                             .child(lbl),
                     );
