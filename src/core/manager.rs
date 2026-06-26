@@ -2,13 +2,46 @@
 ///
 /// This module bridges the lower-level `CoreService` (background threads,
 /// IPC, process management) with the GPUI application event loop.
+///
+/// # Binary embedding
+///
+/// In **release** builds, the Go core binary (`FlClashCore`) is embedded
+/// into the Rust binary via `include_bytes!`. On first launch, it is
+/// extracted to the app data directory. This ensures the final package
+/// is a single executable with no external dependencies.
+///
+/// In **debug** builds, the core is searched next to the executable
+/// (for fast iteration).
 use gpui::Global;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core::action::{ActionResult, ActionMethod};
 use crate::core::event::CoreEventListener;
 use crate::core::service::{CoreService, CoreStatus};
+
+// ── Embedded core binary (release only) ───────────────────────────
+
+/// Name of the Go core binary (platform-dependent).
+#[cfg(windows)]
+const CORE_EXE_NAME: &str = "FlClashCore.exe";
+#[cfg(not(windows))]
+const CORE_EXE_NAME: &str = "FlClashCore";
+
+/// In release mode, the Go core binary is compiled by build.rs and
+/// embedded directly into the Rust binary.
+///
+/// `core_bin_disabled` is set by build.rs when Go toolchain is missing.
+#[cfg(all(not(debug_assertions), not(core_bin_disabled)))]
+mod embedded {
+    #[cfg(windows)]
+    pub const DATA: &[u8] =
+        include_bytes!(concat!(env!("OUT_DIR"), "/FlClashCore.exe"));
+    #[cfg(not(windows))]
+    pub const DATA: &[u8] =
+        include_bytes!(concat!(env!("OUT_DIR"), "/FlClashCore"));
+}
 
 // ── Random address generation ────────────────────────────────────
 
@@ -29,29 +62,129 @@ pub fn random_address() -> String {
     }
 }
 
-/// Resolve the Go core binary path relative to the current executable.
+/// Resolve the Go core binary path.
+///
+/// Resolution order:
+/// 1. Next to the Rust executable (convenience for debug/dev)
+/// 2. Extract embedded binary from release build to data directory
+/// 3. Current working directory
 pub fn resolve_core_path() -> Option<String> {
+    // 1. Check next to the executable (developer convenience)
+    if let Some(p) = find_core_next_to_exe() {
+        log::info!("[CoreManager] found core next to exe: {}", p.display());
+        return Some(p.to_string_lossy().to_string());
+    }
+
+    // 2. Extract embedded binary (release builds only)
+    #[cfg(not(debug_assertions))]
+    if let Some(p) = extract_embedded_core() {
+        log::info!("[CoreManager] extracted embedded core to: {}", p.display());
+        return Some(p.to_string_lossy().to_string());
+    }
+
+    // 3. Check cached extraction from previous run
+    if let Some(p) = cached_core_path() {
+        if p.exists() {
+            log::info!("[CoreManager] found cached core: {}", p.display());
+            return Some(p.to_string_lossy().to_string());
+        }
+    }
+
+    // 4. Current working directory (fallback)
+    if let Ok(cwd) = std::env::current_dir() {
+        let candidate = cwd.join(CORE_EXE_NAME);
+        if candidate.exists() {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    log::error!("[CoreManager] core binary not found ({})", CORE_EXE_NAME);
+    None
+}
+
+/// Look for FlClashCore next to the current executable.
+fn find_core_next_to_exe() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-
-    #[cfg(windows)]
-    let name = "FlClashCore.exe";
-    #[cfg(not(windows))]
-    let name = "FlClashCore";
-
-    let candidate = dir.join(name);
+    let candidate = dir.join(CORE_EXE_NAME);
     if candidate.exists() {
-        return Some(candidate.to_string_lossy().to_string());
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+/// Get the cached core path in the app data directory.
+fn cached_core_path() -> Option<PathBuf> {
+    let data_dir = dirs::data_dir()?;
+    Some(data_dir.join("hopen").join("core").join(CORE_EXE_NAME))
+}
+
+/// Extract the embedded Go core binary to the app data directory.
+///
+/// This is called on first launch (or after app update).
+/// The extracted binary is cached for subsequent launches.
+#[cfg(not(debug_assertions))]
+fn extract_embedded_core() -> Option<PathBuf> {
+    // In debug builds, or if Go wasn't available at build time,
+    // the embedded module isn't available.
+    #[cfg(core_bin_disabled)]
+    {
+        return None;
     }
 
-    // Fallback: try current directory
-    let cwd = std::env::current_dir().ok()?;
-    let cwd_candidate = cwd.join(name);
-    if cwd_candidate.exists() {
-        return Some(cwd_candidate.to_string_lossy().to_string());
-    }
+    #[cfg(not(core_bin_disabled))]
+    {
+        let target = cached_core_path()?;
 
-    None
+        // Only extract if the cached binary is missing or outdated
+        // (compare size as a quick heuristic; full hash check too expensive)
+        let need_extract = if target.exists() {
+            if let Ok(meta) = std::fs::metadata(&target) {
+                meta.len() != embedded::DATA.len() as u64
+            } else {
+                true
+            }
+        } else {
+            true
+        };
+
+        if need_extract {
+            // Ensure parent directories exist
+            if let Some(parent) = target.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    log::error!(
+                        "[CoreManager] failed to create core cache dir: {}",
+                        e
+                    );
+                    return None;
+                }
+            }
+
+            if let Err(e) = std::fs::write(&target, embedded::DATA) {
+                log::error!("[CoreManager] failed to extract core binary: {}", e);
+                return None;
+            }
+
+            log::info!(
+                "[CoreManager] extracted core binary ({} bytes) to {}",
+                embedded::DATA.len(),
+                target.display()
+            );
+        }
+
+        // Make executable on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(
+                &target,
+                std::fs::Permissions::from_mode(0o755),
+            );
+        }
+
+        Some(target)
+    }
 }
 
 // ── CoreManager ──────────────────────────────────────────────────
