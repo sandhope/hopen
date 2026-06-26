@@ -22,6 +22,7 @@ use crate::theme::Theme;
 // ─── Dialog parameter types ────────────────────────────────────────
 
 /// Which kind of dialog to show.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DialogKind {
     Info,
@@ -40,6 +41,7 @@ pub struct DialogParams {
 }
 
 impl DialogParams {
+    #[allow(dead_code)]
     pub fn info(title: impl Into<String>, body: impl Into<String>) -> Self {
         Self {
             kind: DialogKind::Info,

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Side Sheet — a panel that slides in from the right edge.
 ///
 /// Architecture:

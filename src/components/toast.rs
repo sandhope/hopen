@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Toast notification overlay component.
 ///
 /// Renders a stack of notification bars at the bottom-right of the window.

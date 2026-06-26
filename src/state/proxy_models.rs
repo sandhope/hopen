@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Proxy-related data models — mirror FlClash `lib/models/clash_config.dart` and `common.dart`.
 use serde::{Deserialize, Serialize};
 

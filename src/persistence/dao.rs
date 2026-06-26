@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Data-access objects (DAOs) for each persistent entity.
 //!
 //! Each DAO works directly against a `Database` reference and

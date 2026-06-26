@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Core service — manages the Go clash.meta process lifecycle and provides
 /// a high-level RPC interface for all core operations.
 use std::collections::HashMap;

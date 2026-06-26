@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// High-performance virtual list — renders only visible items.
 ///
 /// Architecture:

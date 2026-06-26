@@ -28,6 +28,7 @@ pub struct MockRequest {
     pub headers: Vec<(&'static str, &'static str)>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RuleType {
     Matched,

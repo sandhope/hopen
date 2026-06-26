@@ -16,6 +16,7 @@ pub struct ConfigProfile {
     pub updated_at: Option<i64>,
     /// Subscription info (upload/download/total bytes).
     #[serde(skip)]
+    #[allow(dead_code)]
     pub subscription_info: Option<SubscriptionInfo>,
     /// Fetched config YAML content (lazy-loaded from core).
     #[serde(skip)]
@@ -59,6 +60,7 @@ impl Global for ConfigState {}
 
 impl ConfigState {
     /// Get the currently active profile.
+    #[allow(dead_code)]
     pub fn active_profile(&self) -> Option<&ConfigProfile> {
         self.active_index.and_then(|i| self.profiles.get(i))
     }

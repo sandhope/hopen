@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Grid layout — arranges children in a configurable column grid.
 ///
 /// Architecture:

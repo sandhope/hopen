@@ -184,6 +184,7 @@ pub struct InitParams {
 
 // ── Change Proxy Params ──────────────────────────────────────────
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangeProxyParams {
     #[serde(rename = "group-name")]
@@ -195,6 +196,7 @@ pub struct ChangeProxyParams {
 // ── Helper: JSON-extract common payload shapes ───────────────────
 
 /// Extracts `ActionResult.data` as the requested type.
+#[allow(dead_code)]
 pub fn parse_result_data<T: serde::de::DeserializeOwned>(r: &ActionResult) -> Option<T> {
     serde_json::from_value(r.data.clone()).ok()
 }

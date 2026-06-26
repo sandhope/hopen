@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Card component — a reusable surface container with optional header/body/footer.
 ///
 /// Architecture:

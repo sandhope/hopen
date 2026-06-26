@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Binary frame transport helpers.
 ///
 /// The Go core communicates over a local socket / named pipe using a simple

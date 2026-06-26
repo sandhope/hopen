@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Animated Grid — grid with staggered entrance animation.
 ///
 /// Architecture:

@@ -69,6 +69,7 @@ impl LogState {
     }
 
     /// Filtered view of entries by current level.
+    #[allow(dead_code)]
     pub fn filtered(&self) -> Vec<&LogEntry> {
         self.entries
             .iter()

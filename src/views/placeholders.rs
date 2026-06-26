@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Placeholder views for pages whose content is not yet implemented.
 
 use gpui::*;
@@ -9,7 +10,6 @@ use super::shared::placeholder_section;
 
 // ─── Resources ─────────────────────────────────────────────────
 
-#[allow(dead_code)]
 pub(super) fn resources_view(theme: &Theme, strings: &I18nStrings) -> impl IntoElement {
     placeholder_section(
         strings.placeholder_resources_title,

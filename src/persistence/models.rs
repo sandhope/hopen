@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Database models — mirror FlClash's SQLite tables.
 //!
 //! These are the persisted versions of domain objects, distinct from

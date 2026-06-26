@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 /// Returns `true` if Hopen is currently set to auto-start on login.
+#[allow(dead_code)]
 pub fn is_auto_start_enabled() -> bool {
     autostart_path()
         .map(|p| p.exists())

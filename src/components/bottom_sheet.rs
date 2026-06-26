@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Bottom Sheet — a panel that slides up from the bottom of the screen.
 ///
 /// Architecture:

@@ -63,6 +63,7 @@ impl ProxyState {
     }
 
     /// Record a proxy selection.
+    #[allow(dead_code)]
     pub fn select(&mut self, group_name: &str, proxy_name: &str) {
         self.selected
             .insert(group_name.to_string(), proxy_name.to_string());

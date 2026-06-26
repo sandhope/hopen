@@ -11,7 +11,6 @@ use crate::theme::{Theme, CARD_RADIUS};
 // ─── Data types ────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum GroupType {
     Selector,
     URLTest,
@@ -20,7 +19,6 @@ pub enum GroupType {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum NodeType {
     Direct,
     Reject,

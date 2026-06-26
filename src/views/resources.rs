@@ -76,8 +76,7 @@ pub(crate) struct MockResource {
     /// The current download URL (user-customizable).
     pub(crate) url: String,
     /// Whether the URL has been modified from the default.
-    #[allow(dead_code)]
-    url_modified: bool,
+    _url_modified: bool,
     /// File size on disk in bytes, or None if the file does not exist locally.
     file_size: Option<u64>,
     /// Last modified time as a display string (e.g. "2 hours ago").
@@ -90,7 +89,7 @@ fn mock_resources() -> Vec<MockResource> {
         .map(|rt| MockResource {
             resource_type: *rt,
             url: rt.default_url().to_string(),
-            url_modified: false,
+            _url_modified: false,
             file_size: Some(match rt {
                 ResourceType::GeoIP => 8_542_312,
                 ResourceType::GeoSite => 4_210_876,
@@ -596,7 +595,7 @@ fn render_edit_url_dialog(
                                                 this.resources_state.items.get_mut(index)
                                             {
                                                 item.url = new_url;
-                                                item.url_modified = true;
+                                                item._url_modified = true;
                                             }
                                             this.resources_state.editing_index = None;
                                             this.resources_edit_input.update(cx, |t: &mut TextInput, _| t.clear());

@@ -243,7 +243,7 @@ impl TextInput {
         // ── CursorField: custom Element that renders text + blinking cursor ──
         let cursor_field = CursorField {
             text: if has_text { display } else { placeholder },
-            is_placeholder: !has_text,
+            _is_placeholder: !has_text,
             cursor_offset: if has_text { cursor_offset } else { 0 },
             show_cursor,
             text_color,
@@ -325,7 +325,7 @@ impl Focusable for TextInput {
 
 struct CursorField {
     text: String,
-    is_placeholder: bool,
+    _is_placeholder: bool,
     cursor_offset: usize,
     show_cursor: bool,
     text_color: Hsla,

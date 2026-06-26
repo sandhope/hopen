@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Chart components built with GPUI native elements.
 ///
 /// GPUI 0.2.2 lacks Canvas 2D / Path drawing, so all charts are rendered

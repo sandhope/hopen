@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Core bridge — data pipeline from Go core to GPUI Global state.
 ///
 /// Push events (log, delay, request) from the Go core are received via
@@ -23,7 +24,7 @@ use crate::AppState;
 // ── Thread-safe event buffer ─────────────────────────────────────
 
 #[derive(Debug, Clone)]
-enum BridgeEvent {
+pub(crate) enum BridgeEvent {
     Log { time: String, level: String, payload: String },
     Delay { name: String, value: Option<i32> },
     Request { time: String, host: String, proxy: String, delay: i32, rule: String, info: Option<String> },

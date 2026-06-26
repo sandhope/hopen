@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Core manager — GPUI-aware wrapper around CoreService.
 ///
 /// This module bridges the lower-level `CoreService` (background threads,

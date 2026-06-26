@@ -37,11 +37,11 @@ pub enum ConnectionNetwork {
     Udp,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionRuleType {
     Domain,
     IpCidr,
-    #[allow(dead_code)]
     Geoip,
     Geosite,
     Match,

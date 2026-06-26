@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! User-preference store backed by the `app_config` tree.
 //!
 //! Mirrors FlClash's `SharedPreferences` layer — simple key-value
