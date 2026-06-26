@@ -23,6 +23,14 @@ pub enum ProfileType {
     Subscription,
 }
 
+/// Three ways to add a profile, mirroring FlClash.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AddMode {
+    Qr,
+    File,
+    Url,
+}
+
 #[derive(Clone)]
 pub struct MockProfile {
     pub name: &'static str,
@@ -80,6 +88,7 @@ pub(super) fn profiles_view(
     strings: &I18nStrings,
     selected_index: Option<usize>,
     show_add: bool,
+    add_mode: AddMode,
     detail_tab: DetailTab,
     overwrite_sub_tab: OverwriteSubTab,
     search: &Entity<TextInput>,
@@ -127,7 +136,7 @@ pub(super) fn profiles_view(
         .px(px(24.0))
         .py(px(8.0))
         // ── Toolbar ────────────────────────────────
-        .child(render_toolbar(theme, cx, strings, &search_text, has_search, show_add, search))
+        .child(render_toolbar(theme, cx, strings, &search_text, has_search, show_add, add_mode, search))
         // ── Search indicator ──────────────────────
         .when(has_search, |s| {
             let ft = search_text.clone();
@@ -165,7 +174,7 @@ pub(super) fn profiles_view(
         })
         // ── Add subscription panel ────────────────
         .when(show_add, |s| {
-            s.child(render_add_panel(theme, cx, strings, url_input))
+            s.child(render_add_panel(theme, cx, strings, add_mode, url_input))
         })
         // ── Profile list ──────────────────────────
         .child(render_profile_list(theme, cx, strings, &filtered, selected_index))
@@ -185,9 +194,14 @@ fn render_toolbar(
     _search_text: &str,
     _has_search: bool,
     show_add: bool,
+    add_mode: AddMode,
     search: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
-    let add_label = strings.profiles_add_subscription.to_string();
+    let add_label = match add_mode {
+        AddMode::Qr => strings.profiles_add_qr.to_string(),
+        AddMode::File => strings.profiles_add_file.to_string(),
+        AddMode::Url => strings.profiles_add_url.to_string(),
+    };
     let cancel_label = strings.profiles_cancel.to_string();
     let search_rendered = search.update(cx, |t, cx| t.render(theme, cx));
 
@@ -196,7 +210,7 @@ fn render_toolbar(
         .items_center()
         .gap(px(8.0))
         .child(search_rendered)
-        // Add subscription button
+        // Add subscription button — shows current mode label when panel is open
         .child(
             div()
                 .flex()
@@ -211,7 +225,12 @@ fn render_toolbar(
                     let entity = cx.entity();
                     move |_: &MouseDownEvent, _window, app| {
                         entity.update(app, |this, _| {
-                            this.profiles_show_add = !this.profiles_show_add;
+                            if this.profiles_show_add {
+                                this.profiles_show_add = false;
+                                this.profiles_add_mode = AddMode::Url;
+                            } else {
+                                this.profiles_show_add = true;
+                            }
                         });
                     }
                 })
@@ -225,19 +244,19 @@ fn render_toolbar(
         )
 }
 
-// ─── Add subscription panel ────────────────────────────────────────────
+// ─── Add profile panel (3 modes: QR / File / URL) ────────────────────
 
 fn render_add_panel(
     theme: &Theme,
     cx: &mut Context<crate::app::AppView>,
     strings: &I18nStrings,
+    add_mode: AddMode,
     url_input: &Entity<TextInput>,
 ) -> impl IntoElement + use<> {
     let title = strings.profiles_add_title.to_string();
-    let url_label = strings.profiles_url_label.to_string();
-    let save_label = strings.profiles_save.to_string();
-    let cancel_label = strings.profiles_cancel.to_string();
-    let url_rendered = url_input.update(cx, |t, cx| t.render_plain(theme, cx));
+    let qr_label = strings.profiles_add_qr.to_string();
+    let file_label = strings.profiles_add_file.to_string();
+    let url_label_tab = strings.profiles_add_url.to_string();
 
     div()
         .flex()
@@ -266,92 +285,332 @@ fn render_add_panel(
                         .child(title),
                 ),
         )
-        // Form content
+        // Mode tab bar
         .child(
             div()
                 .flex()
-                .flex_col()
-                .gap(px(12.0))
-                .px(px(16.0))
-                .py(px(12.0))
+                .px(px(12.0))
+                .pt(px(12.0))
+                .gap(px(4.0))
+                .child(render_add_mode_tab(theme, cx, &qr_label, AddMode::Qr, add_mode))
+                .child(render_add_mode_tab(theme, cx, &file_label, AddMode::File, add_mode))
+                .child(render_add_mode_tab(theme, cx, &url_label_tab, AddMode::Url, add_mode)),
+        )
+        // Mode content
+        .child(match add_mode {
+            AddMode::Qr => render_qr_panel(theme, strings).into_any_element(),
+            AddMode::File => render_file_panel(theme, cx, strings).into_any_element(),
+            AddMode::Url => render_url_panel(theme, cx, strings, url_input).into_any_element(),
+        })
+}
+
+fn render_add_mode_tab(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    label: &str,
+    mode: AddMode,
+    active: AddMode,
+) -> impl IntoElement + use<> {
+    let is_active = active == mode;
+    let label = label.to_string();
+
+    div()
+        .flex()
+        .items_center()
+        .px(px(14.0))
+        .py(px(7.0))
+        .rounded(px(6.0))
+        .text_size(px(12.0))
+        .font_weight(if is_active { FontWeight::SEMIBOLD } else { FontWeight::NORMAL })
+        .text_color(if is_active { rgb(theme.accent) } else { rgb(theme.text_secondary) })
+        .bg(if is_active {
+            let mut c = rgb(theme.accent);
+            c.a = 0.12;
+            c
+        } else {
+            rgba(0x00000000)
+        })
+        .cursor_pointer()
+        .hover(|s| {
+            if !is_active {
+                s.bg(rgb(theme.surface_variant))
+            } else {
+                s
+            }
+        })
+        .on_any_mouse_down({
+            let entity = cx.entity();
+            move |_: &MouseDownEvent, _window, app| {
+                entity.update(app, |this, _| {
+                    this.profiles_add_mode = mode;
+                });
+            }
+        })
+        .child(label)
+}
+
+// ─── QR code panel ──────────────────────────────────────────────────────
+
+fn render_qr_panel(
+    theme: &Theme,
+    strings: &I18nStrings,
+) -> impl IntoElement + use<> {
+    let desc = strings.profiles_add_qr_desc.to_string();
+
+    div()
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap(px(16.0))
+        .px(px(16.0))
+        .py(px(32.0))
+        .child(
+            // Placeholder QR scan area — to be replaced with camera integration
+            div()
+                .w(px(180.0))
+                .h(px(180.0))
+                .rounded(px(12.0))
+                .bg(rgb(theme.content_bg))
+                .border_1()
+                .border_color(rgb(theme.border_light))
+                .flex()
+                .items_center()
+                .justify_center()
                 .child(
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(4.0))
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .text_size(px(32.0))
+                                .text_color(rgb(theme.text_disabled))
+                                .child("\u{25A3}"), // QR icon placeholder
+                        )
                         .child(
                             div()
                                 .text_size(px(11.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(rgb(theme.text_secondary))
-                                .child(url_label),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .rounded(px(6.0))
-                                .bg(rgb(theme.content_bg))
-                                .border_1()
-                                .border_color(rgb(theme.border_light))
-                                .child(url_rendered),
+                                .text_color(rgb(theme.text_disabled))
+                                .child(desc),
                         ),
-                )
-                // Action buttons
+                ),
+        )
+}
+
+// ─── File import panel ──────────────────────────────────────────────────
+
+fn render_file_panel(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+) -> impl IntoElement + use<> {
+    let select_label = strings.profiles_add_file_select.to_string();
+    let _selected_label = strings.profiles_add_file_selected.to_string();
+    let save_label = strings.profiles_save.to_string();
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .px(px(16.0))
+        .py(px(12.0))
+        .child(
+            div()
+                .text_size(px(11.0))
+                .text_color(rgb(theme.text_secondary))
+                .child("Select a YAML or JSON configuration file."),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
                 .child(
-                    div().flex().gap(px(8.0)).justify_end()
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .px(px(14.0))
-                                .py(px(6.0))
-                                .rounded(px(6.0))
-                                .text_size(px(12.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(rgb(theme.text_secondary))
-                                .bg(rgb(theme.surface_variant))
-                                .cursor_pointer()
-                                .hover(|s| s.opacity(0.8))
-                                .on_any_mouse_down({
-                                    let entity = cx.entity();
-                                    move |_: &MouseDownEvent, _window, app| {
-                                        entity.update(app, |this, _| {
-                                            this.profiles_show_add = false;
-                                        });
-                                    }
-                                })
-                                .child(cancel_label),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .px(px(14.0))
-                                .py(px(6.0))
-                                .rounded(px(6.0))
-                                .text_size(px(12.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(rgb(0xffffff))
-                                .bg(rgb(theme.accent))
-                                .cursor_pointer()
-                                .hover(|s| s.opacity(0.85))
-                                .on_any_mouse_down({
-                                    let entity = cx.entity();
-                                    let url_input = url_input.clone();
-                                    move |_: &MouseDownEvent, _window, app| {
-                                        let url = url_input.read(app).text().to_string();
-                                        let trimmed = url.trim().to_string();
-                                        entity.update(app, |this, _| {
-                                            this.profiles_show_add = false;
-                                        });
-                                        if !trimmed.is_empty() {
-                                            let _ = crate::core::bridge::add_subscription(&trimmed, app);
-                                        }
-                                    }
-                                })
-                                .child(save_label),
-                        ),
+                    div()
+                        .flex()
+                        .items_center()
+                        .px(px(14.0))
+                        .py(px(8.0))
+                        .rounded(px(6.0))
+                        .bg(rgb(theme.accent))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(0xffffff))
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.85))
+                        .on_any_mouse_down({
+                            let entity = cx.entity();
+                            move |_: &MouseDownEvent, _window, app| {
+                                // TODO: native file picker integration
+                                entity.update(app, |_this, _| {
+                                    // On file selected:
+                                    // core::bridge::add_local_file(&path, app);
+                                });
+                            }
+                        })
+                        .child(select_label),
+                )
+                .child(
+                    div()
+                        .text_size(px(11.0))
+                        .text_color(rgb(theme.text_disabled))
+                        .child("No file selected"),
+                ),
+        )
+        // Action buttons
+        .child(
+            div().flex().gap(px(8.0)).justify_end()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .px(px(14.0))
+                        .py(px(6.0))
+                        .rounded(px(6.0))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(theme.text_secondary))
+                        .bg(rgb(theme.surface_variant))
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.8))
+                        .on_any_mouse_down({
+                            let entity = cx.entity();
+                            move |_: &MouseDownEvent, _window, app| {
+                                entity.update(app, |this, _| {
+                                    this.profiles_show_add = false;
+                                    this.profiles_add_mode = AddMode::Url;
+                                });
+                            }
+                        })
+                        .child(strings.profiles_cancel.to_string()),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .px(px(14.0))
+                        .py(px(6.0))
+                        .rounded(px(6.0))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(0xffffff))
+                        .bg(rgb(theme.accent))
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.85))
+                        .on_any_mouse_down({
+                            let entity = cx.entity();
+                            move |_: &MouseDownEvent, _window, app| {
+                                entity.update(app, |this, _| {
+                                    this.profiles_show_add = false;
+                                    this.profiles_add_mode = AddMode::Url;
+                                });
+                            }
+                        })
+                        .child(save_label),
+                ),
+        )
+}
+
+// ─── URL import panel ───────────────────────────────────────────────────
+
+fn render_url_panel(
+    theme: &Theme,
+    cx: &mut Context<crate::app::AppView>,
+    strings: &I18nStrings,
+    url_input: &Entity<TextInput>,
+) -> impl IntoElement + use<> {
+    let url_label = strings.profiles_url_label.to_string();
+    let save_label = strings.profiles_save.to_string();
+    let cancel_label = strings.profiles_cancel.to_string();
+    let url_rendered = url_input.update(cx, |t, cx| t.render_plain(theme, cx));
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .px(px(16.0))
+        .py(px(12.0))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(4.0))
+                .child(
+                    div()
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(theme.text_secondary))
+                        .child(url_label),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .rounded(px(6.0))
+                        .bg(rgb(theme.content_bg))
+                        .border_1()
+                        .border_color(rgb(theme.border_light))
+                        .child(url_rendered),
+                ),
+        )
+        // Action buttons
+        .child(
+            div().flex().gap(px(8.0)).justify_end()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .px(px(14.0))
+                        .py(px(6.0))
+                        .rounded(px(6.0))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(theme.text_secondary))
+                        .bg(rgb(theme.surface_variant))
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.8))
+                        .on_any_mouse_down({
+                            let entity = cx.entity();
+                            move |_: &MouseDownEvent, _window, app| {
+                                entity.update(app, |this, _| {
+                                    this.profiles_show_add = false;
+                                    this.profiles_add_mode = AddMode::Url;
+                                });
+                            }
+                        })
+                        .child(cancel_label),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .px(px(14.0))
+                        .py(px(6.0))
+                        .rounded(px(6.0))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(rgb(0xffffff))
+                        .bg(rgb(theme.accent))
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.85))
+                        .on_any_mouse_down({
+                            let entity = cx.entity();
+                            let url_input = url_input.clone();
+                            move |_: &MouseDownEvent, _window, app| {
+                                let url = url_input.read(app).text().to_string();
+                                let trimmed = url.trim().to_string();
+                                entity.update(app, |this, _| {
+                                    this.profiles_show_add = false;
+                                    this.profiles_add_mode = AddMode::Url;
+                                });
+                                if !trimmed.is_empty() {
+                                    let _ = crate::core::bridge::add_subscription(&trimmed, app);
+                                }
+                            }
+                        })
+                        .child(save_label),
                 ),
         )
 }

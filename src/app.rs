@@ -46,6 +46,8 @@ pub struct AppView {
     pub profiles_selected_index: Option<usize>,
     /// Whether the Add Subscription panel is shown.
     pub profiles_show_add: bool,
+    /// Active add mode tab in the Add Subscription panel.
+    pub profiles_add_mode: crate::views::profiles::AddMode,
     /// URL input entity for the Add Subscription panel.
     pub profiles_url_input: Entity<TextInput>,
     /// Active tab in the profiles detail panel.
@@ -101,6 +103,7 @@ impl AppView {
             profiles_search,
             profiles_selected_index: None,
             profiles_show_add: false,
+            profiles_add_mode: crate::views::profiles::AddMode::Url,
             profiles_url_input,
             profiles_detail_tab: None,
             profiles_overwrite_sub_tab: None,
@@ -189,6 +192,7 @@ impl Render for AppView {
             &self.profiles_search,
             self.profiles_selected_index,
             self.profiles_show_add,
+            self.profiles_add_mode,
             &self.profiles_url_input,
             self.profiles_detail_tab.unwrap_or(views::profiles::DetailTab::Info),
             self.profiles_overwrite_sub_tab.unwrap_or(views::profiles::OverwriteSubTab::Standard),

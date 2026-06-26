@@ -47,6 +47,7 @@ pub fn render_page(
     profiles_search: &Entity<TextInput>,
     profiles_selected_index: Option<usize>,
     profiles_show_add: bool,
+    profiles_add_mode: profiles::AddMode,
     profiles_url_input: &Entity<TextInput>,
     profiles_detail_tab: profiles::DetailTab,
     profiles_overwrite_sub_tab: profiles::OverwriteSubTab,
@@ -74,7 +75,7 @@ pub fn render_page(
         let content: AnyElement = match page {
             Page::Dashboard => dashboard::dashboard_view(theme, cx, &strings).into_any_element(),
             Page::Proxies => proxies::proxies_view(theme, cx, &strings, proxies_expanded, proxies_search).into_any_element(),
-            Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_selected_index, profiles_show_add, profiles_detail_tab, profiles_overwrite_sub_tab, profiles_search, profiles_url_input).into_any_element(),
+            Page::Profiles => profiles::profiles_view(theme, cx, &strings, profiles_selected_index, profiles_show_add, profiles_add_mode, profiles_detail_tab, profiles_overwrite_sub_tab, profiles_search, profiles_url_input).into_any_element(),
             Page::Requests => requests::requests_view(theme, cx, &strings, requests_selected_index, requests_search).into_any_element(),
             Page::Connections => connections::connections_view(theme, cx, &strings, connections_selected_index, connections_search).into_any_element(),
             Page::Resources => resources::resources_view(theme, cx, &strings, resources_state, resources_edit_input).into_any_element(),
